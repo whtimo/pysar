@@ -3,9 +3,6 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 
-#Instead of Hello World!
-print('hello cat!')
-
 # Load the image using PIL
 img = Image.open('images/cat.jpeg')
 
