@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the image using PIL
-img = Image.open('images/cat.jpeg')
+img = Image.open('../images/cat.jpeg')
 
 # Convert to numpy array and display
 img_array = np.array(img)
