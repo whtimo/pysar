@@ -8,14 +8,12 @@ class Slc:
     def __init__(self):
         self.metadata = None
         self.slcdata = None
-        self.polarization = None
 
 def fromTSX(xml_path: str, swath_id : int) -> Slc:
     slc = Slc()
-    pol_fle_list = getPolCosFileNamesFromTsx(xml_path)
-    slc.metadata = metadata.fromTSX(xml_path)
-    slc.polarization = pol_fle_list[swath_id][1]
-    slc.slcdata = cpl_float_slcdata.CplFloatSlcData(pol_fle_list[swath_id][0])
+    pol_file_list = getPolCosFileNamesFromTsx(xml_path)
+    slc.metadata = metadata.fromTSX(xml_path, pol_file_list[swath_id][1])
+    slc.slcdata = cpl_float_slcdata.CplFloatSlcData(pol_file_list[swath_id][0])
     return slc
 
 def numberOfSwathsFromTsx(xml_path: str) -> int:

@@ -1,28 +1,48 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import numpy as np
-
+import bisect
+from scipy.interpolate import CubicHermiteSpline
 
 class Orbit:
     def __init__(self):
+        self.reference_time = None
         self.times = []  # Time differences from reference time in seconds
         self.positions = []  # List of [posX, posY, posZ] lists
         self.velocities = []  # List of [velX, velY, velZ] lists
+        self._spline_x = None
+        self._spline_y = None
+        self._spline_z = None
 
-    def add_state(self, time_diff, position, velocity):
-        self.times.append(time_diff)
-        self.positions.append(position)
-        self.velocities.append(velocity)
+    def seconds_from_reference_time(self, time):
+        return (time - self.reference_time).total_seconds()
 
+    def interpolate_position(self, time: float) -> np.array:
+        # Check if the requested time is within the available data range
+        if time < self.times[0] or time > self.times[-1]:
+            raise ValueError(f"Time {time} is outside the available data range.")
 
-def fromTSX(root: ET.Element, reference_time: datetime) -> Orbit:
+        return np.array([self._spline_x(time), self._spline_y(time), self._spline_z(time)])
+
+def fromTSX(root: ET.Element) -> Orbit:
     orbit = Orbit()
 
     # Find the <orbit> tag
     platform = root.find('platform')
     orbit_tag = platform.find('orbit')
+
     if orbit_tag is None:
         raise ValueError("No <orbit> tag found in the XML document.")
+
+    time_str = orbit_tag.find('orbitHeader/firstStateTime/firstStateTimeUTC').text
+    time_format = "%Y-%m-%dT%H:%M:%S.%f"
+    ta = datetime.strptime(time_str, time_format)
+    ta2 = ta.replace(second=ta.second - 1)
+    orbit.reference_time = ta2
+
+    t = []
+    p = []
+    v = []
 
     # Parse each <stateVec>
     for state_vec in orbit_tag.findall('stateVec'):
@@ -35,11 +55,20 @@ def fromTSX(root: ET.Element, reference_time: datetime) -> Orbit:
         velZ = float(state_vec.find('velZ').text)
 
         # Calculate time difference from reference time
-        time_format = "%Y-%m-%dT%H:%M:%S.%f"
-        current_time = datetime.strptime(time_utc, time_format)
-        time_diff = (current_time - reference_time).total_seconds()
 
-        # Add state to the orbit
-        orbit.add_state(time_diff, [posX, posY, posZ], [velX, velY, velZ])
+        current_time = datetime.strptime(time_utc, time_format)
+        time_diff = (current_time - orbit.reference_time).total_seconds()
+
+        t.append(time_diff)
+        p.append([posX, posY, posZ])
+        v.append([velX, velY, velZ])
+
+    orbit.times = np.array(t)
+    orbit.positions = np.array(p)  # Shape: (n, 3)
+    orbit.velocities = np.array(v)  # Shape: (n, 3)
+    orbit._spline_x = CubicHermiteSpline(orbit.times, orbit.positions[:, 0], orbit.velocities[:, 0])
+    orbit._spline_y = CubicHermiteSpline(orbit.times, orbit.positions[:, 1], orbit.velocities[:, 1])
+    orbit._spline_z = CubicHermiteSpline(orbit.times, orbit.positions[:, 2], orbit.velocities[:, 2])
+
 
     return orbit
