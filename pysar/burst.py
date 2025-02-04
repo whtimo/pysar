@@ -1,10 +1,10 @@
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta
 from pysar import orbit, footprint
 import numpy as np
 from scipy.optimize import minimize_scalar
 from scipy.constants import c
-
+from rasterio.windows import Window, bounds
 
 class Burst:
     def __init__(self):
@@ -21,6 +21,34 @@ class Burst:
         # These are not necessary
         self._prf = None
         self._total_bandwidth_range = None
+
+    def subset(self, window: Window):
+        newburst = Burst()
+        newburst.orbit = self.orbit
+        newburst.range_time_to_first_pixel = self.pixel_to_range_time(window.col_off)
+        newburst.first_azimuth_time = self.pixel_to_azimuth_time(window.row_off)
+        newburst.column_spacing = self.column_spacing
+        newburst.row_spacing = self.row_spacing
+        newburst.number_rows = window.height
+        newburst.number_columns = window.width
+        newburst.first_azimuth_datetime = self.orbit.reference_time + timedelta(seconds=newburst.first_azimuth_time)
+
+        newburst.footprint = self.footprint.subset(window, self.number_columns, self.number_rows)
+        return newburst
+
+    def multilook(self, multilook_range=1, multilook_azimuth=1):
+        newburst = Burst()
+        newburst.orbit = self.orbit
+        newburst.range_time_to_first_pixel = self.range_time_to_first_pixel
+        newburst.first_azimuth_time = self.first_azimuth_time
+        newburst.column_spacing = self.column_spacing * multilook_range
+        newburst.row_spacing = self.row_spacing * multilook_azimuth
+        newburst.number_rows = int(self.number_rows / multilook_azimuth)
+        newburst.number_columns = int(self.number_columns / multilook_range)
+        newburst.first_azimuth_datetime = self.first_azimuth_datetime
+
+        newburst.footprint = self.footprint
+        return newburst
 
     # Returns the azimuth time and the satellite position for the given time that are closest to the given geocentric position
     def azimuth_time_from_geocentric(self, target: np.array):
@@ -63,8 +91,14 @@ class Burst:
     def range_time_to_pixel(self, range_time):
         return (range_time - self.range_time_to_first_pixel) / self.column_spacing
 
+    def pixel_to_range_time(self, pixel):
+        return self.range_time_to_first_pixel + pixel * self.column_spacing
+
     def azimuth_time_to_pixel(self, azimuth_time):
         return (azimuth_time - self.first_azimuth_time) / self.row_spacing
+
+    def pixel_to_azimuth_time(self, pixel):
+        return self.first_azimuth_time + pixel * self.row_spacing
 
     # Returns the pixel possition for a given geocentric coordinate
     def pixel_from_geocentric(self, geocentric: np.array):
@@ -77,6 +111,47 @@ class Burst:
         y = self.azimuth_time_to_pixel(az_time)
         return [x, y]
 
+    def toXml(self, root: ET.Element):
+        # Save range_time_to_first_pixel
+        if self.range_time_to_first_pixel is not None:
+            range_time_elem = ET.SubElement(root, "range_time_to_first_pixel")
+            range_time_elem.text = str(self.range_time_to_first_pixel)
+
+        # Save first_azimuth_time
+        if self.first_azimuth_time is not None:
+            azimuth_time_elem = ET.SubElement(root, "first_azimuth_time")
+            azimuth_time_elem.text = str(self.first_azimuth_time)
+
+        # Save column_spacing
+        if self.column_spacing is not None:
+            column_spacing_elem = ET.SubElement(root, "column_spacing")
+            column_spacing_elem.text = str(self.column_spacing)
+
+        # Save row_spacing
+        if self.row_spacing is not None:
+            row_spacing_elem = ET.SubElement(root, "row_spacing")
+            row_spacing_elem.text = str(self.row_spacing)
+
+        # Save number_rows
+        if self.number_rows is not None:
+            number_rows_elem = ET.SubElement(root, "number_rows")
+            number_rows_elem.text = str(self.number_rows)
+
+        # Save number_columns
+        if self.number_columns is not None:
+            number_columns_elem = ET.SubElement(root, "number_columns")
+            number_columns_elem.text = str(self.number_columns)
+
+        # Save first_azimuth_datetime
+        if self.first_azimuth_datetime is not None:
+            azimuth_datetime_elem = ET.SubElement(root, "first_azimuth_datetime")
+            azimuth_datetime_elem.text = self.first_azimuth_datetime.isoformat()
+
+        orbit_elem = ET.SubElement(root, "orbit")
+        self.orbit.toXml(orbit_elem)
+
+        footprint_elem = ET.SubElement(root, "footprint")
+        self.footprint.toXml(footprint_elem)
 
 def fromTSX(root: ET.Element) -> Burst:
     burst = Burst()
@@ -111,4 +186,49 @@ def fromTSX(root: ET.Element) -> Burst:
     burst.orbit = orbit.fromTSX(root)
     burst.first_azimuth_time = burst.orbit.seconds_from_reference_time(burst.first_azimuth_datetime)
     burst.footprint = footprint.fromTSX(root)
+    return burst
+
+
+def fromXml(root : ET.Element) -> Burst:
+    burst = Burst()
+    orbit_elem = root.find("orbit")
+    burst.orbit = orbit.fromXml(orbit_elem)
+    footprint_elem = root.find("footprint")
+    burst.footprint = footprint.fromXml(footprint_elem)
+    # Load range_time_to_first_pixel
+    range_time_elem = root.find("range_time_to_first_pixel")
+    if range_time_elem is not None and range_time_elem.text:
+        burst.range_time_to_first_pixel = float(range_time_elem.text)
+
+    # Load first_azimuth_time
+    azimuth_time_elem = root.find("first_azimuth_time")
+    if azimuth_time_elem is not None and azimuth_time_elem.text:
+        burst.first_azimuth_time = float(azimuth_time_elem.text)
+
+    # Load column_spacing
+    column_spacing_elem = root.find("column_spacing")
+    if column_spacing_elem is not None and column_spacing_elem.text:
+        burst.column_spacing = float(column_spacing_elem.text)
+
+    # Load row_spacing
+    row_spacing_elem = root.find("row_spacing")
+    if row_spacing_elem is not None and row_spacing_elem.text:
+        burst.row_spacing = float(row_spacing_elem.text)
+
+    # Load number_rows
+    number_rows_elem = root.find("number_rows")
+    if number_rows_elem is not None and number_rows_elem.text:
+        burst.number_rows = int(number_rows_elem.text)
+
+    # Load number_columns
+    number_columns_elem = root.find("number_columns")
+    if number_columns_elem is not None and number_columns_elem.text:
+        burst.number_columns = int(number_columns_elem.text)
+
+    # Load first_azimuth_datetime
+    azimuth_datetime_elem = root.find("first_azimuth_datetime")
+    if azimuth_datetime_elem is not None and azimuth_datetime_elem.text:
+        burst.first_azimuth_datetime = datetime.fromisoformat(azimuth_datetime_elem.text)
+
+
     return burst

@@ -4,16 +4,26 @@ import pysar
 from pysar import slc, coordinates
 import datetime
 import numpy as np
+import pathlib
 
+class ImportTsxTest(unittest.TestCase):
 
-class ReadTsxTest(unittest.TestCase):
-
-    def test_readTsx_RapaNui(self):
+    @classmethod
+    def setUpClass(cls):
+        cls.import_path_ = pathlib.Path('../data/import')
+        for child in cls.import_path_.iterdir():
+            if child.is_file():
+                child.unlink()
+    def test_importTsx_RapaNui(self):
         filename = '../data/TDX1_SAR__SSC______ST_S_SRA_20231005T014450_20231005T014450/TDX1_SAR__SSC______ST_S_SRA_20231005T014450_20231005T014450.xml'
-        slc = pysar.slc.fromTSX(filename, 0)
+        out_filepath = '../data'
+
+        tsx = pysar.slc.fromTSX(filename, 0)
+        out_filename = pysar.slc.getPysarPathName(tsx, out_filepath, True)
+        pysar.slc.saveToPysarXml(tsx, out_filename, None)
+
+        slc = pysar.slc.fromPysarXml(out_filename)
         self.assertEqual('HH', slc.metadata.polarization)
-        # self.assertEqual(7322, slc.slcdata.getWidth())
-        # self.assertEqual(17230, slc.slcdata.getHeight() )
         pos = slc.metadata.burst.orbit.positions[0]
         vel = slc.metadata.burst.orbit.velocities[1]
         self.assertEqual(-2.14701108317305800E+06, pos[0])
@@ -45,15 +55,12 @@ class ReadTsxTest(unittest.TestCase):
         self.assertEqual(0.0019498737784892511, slc.metadata.burst.range_time_to_first_pixel)
         self.assertEqual(49.243694, slc.metadata.burst.first_azimuth_time)
 
-        self.assertEqual(42300.0, slc.metadata.burst._prf)
-        self.assertEqual(300000000.0, slc.metadata.burst._total_bandwidth_range)
         self.assertEqual(3.033443670357346e-09 / 2.0, slc.metadata.burst.column_spacing)
         self.assertEqual(2.364066193853428e-05, slc.metadata.burst.row_spacing)
 
         self.assertEqual(7322, slc.metadata.number_columns)
         self.assertEqual(17230, slc.metadata.burst.number_rows)
 
-        self.assertEqual(1.0 / slc.metadata.burst._prf, slc.metadata.burst.row_spacing)
 
         center_lat = -2.70843292193757996E+01
         center_lon = -1.09317180639935202E+02
@@ -76,9 +83,14 @@ class ReadTsxTest(unittest.TestCase):
         self.assertEqual(-2.70647479804389377E+01, slc.metadata.footprint.top())
         self.assertEqual(-2.71032592707287279E+01, slc.metadata.footprint.bottom())
 
-    def test_readTsx(self):
+    def test_importTsx(self):
         path = '../data/TSX1_SAR__SSC______ST_S_SRA_20230425T222958_20230425T222958/TSX1_SAR__SSC______ST_S_SRA_20230425T222958_20230425T222958.xml'
-        slc = pysar.slc.fromTSX(path, 0)
+        out_filepath = '../data'
+        tsx = pysar.slc.fromTSX(path, 0)
+        out_filename = pysar.slc.getPysarPathName(tsx, out_filepath, True)
+        pysar.slc.saveToPysarXml(tsx, out_filename, None)
+
+        slc = pysar.slc.fromPysarXml(out_filename)
         self.assertEqual(17392, slc.metadata.number_rows)
         self.assertEqual(datetime.date(2023, 4, 25), slc.metadata.acquisition_date)
         geoc = np.array(coordinates.geodetic_to_geocentric(lat=30.46797876432665, lon=114.53029015184815))
@@ -93,13 +105,6 @@ class ReadTsxTest(unittest.TestCase):
 
         self.assertAlmostEqual(0.0310665821396723, slc.metadata.wavelength, places=10)
         self.assertEqual('TSX-1', slc.metadata.sensor)
-        # self.assertLess(abs(slc.metas[0].burst.total_processed_azimuth_bandwidth - 2792.47), 0.01)
-        # self.assertLess(abs(slc.metas[0].burst.total_processed_range_bandwidth - 3e+08), 1)
-        # self.assertLess(abs(slc.metas[0].burst.slant_range_resolution - 0.588498), 0.0001)
-        # self.assertLess(abs(slc.metas[0].burst.az_timing_shift - -1.1213e-05), 0.0001)
-        # self.assertLess(abs(slc.metas[0].burst.range_delay_atmos_dry - 1.75328e-08), 0.0001)
-        # self.assertLess(abs(slc.metas[0].burst.fm_rate - -6057.75), 0.01)
-
         self.assertAlmostEqual(29.136, slc.metadata.get_incidence_angle(3358), places=3)
 
 
