@@ -27,30 +27,30 @@ class Orbit:
     def toXml(self, root: ET.Element):
         # Save reference_time
         if self.reference_time is not None:
-            ref_time_elem = ET.SubElement(root, "reference_time")
+            ref_time_elem = ET.SubElement(root, "ReferenceTime")
             ref_time_elem.text = self.reference_time.isoformat()
 
-        # Save times
-        times_elem = ET.SubElement(root, "times")
-        for time in self.times:
-            time_elem = ET.SubElement(times_elem, "time")
-            time_elem.text = str(time)
+        for ix in range(len(self.times)):
+            time = self.times[ix]
+            position = self.positions[ix]
+            velocity = self.velocities[ix]
+            vec_elem = ET.SubElement(root, "Vector")
+            vec_elem.attrib["SecondsFromReference"] = str(time)
+            pos_elem = ET.SubElement(vec_elem, "Position")
+            x_elem = ET.SubElement(pos_elem, "X")
+            x_elem.text = str(position[0])
+            y_elem = ET.SubElement(pos_elem, "Y")
+            y_elem.text = str(position[1])
+            z_elem = ET.SubElement(pos_elem, "Z")
+            z_elem.text = str(position[2])
+            vel_elem = ET.SubElement(vec_elem, "Velocity")
+            vx_elem = ET.SubElement(vel_elem, "X")
+            vx_elem.text = str(velocity[0])
+            vy_elem = ET.SubElement(vel_elem, "Y")
+            vy_elem.text = str(velocity[1])
+            vz_elem = ET.SubElement(vel_elem, "Z")
+            vz_elem.text = str(velocity[2])
 
-        # Save positions
-        positions_elem = ET.SubElement(root, "positions")
-        for pos in self.positions:
-            pos_elem = ET.SubElement(positions_elem, "position")
-            pos_elem.set("x", str(pos[0]))
-            pos_elem.set("y", str(pos[1]))
-            pos_elem.set("z", str(pos[2]))
-
-        # Save velocities
-        velocities_elem = ET.SubElement(root, "velocities")
-        for vel in self.velocities:
-            vel_elem = ET.SubElement(velocities_elem, "velocity")
-            vel_elem.set("x", str(vel[0]))
-            vel_elem.set("y", str(vel[1]))
-            vel_elem.set("z", str(vel[2]))
 
 def fromTSX(root: ET.Element) -> Orbit:
     orbit = Orbit()
@@ -102,37 +102,26 @@ def fromTSX(root: ET.Element) -> Orbit:
     return orbit
 
 
-def fromXml(root: ET.Element) -> Orbit:
+def fromXml(root: ET.Element, ref_time: datetime = None) -> Orbit:
     orbit = Orbit()
-
-    # Load reference_time
-    ref_time_elem = root.find("reference_time")
-    if ref_time_elem is not None and ref_time_elem.text:
-        orbit.reference_time = datetime.fromisoformat(ref_time_elem.text)
+    if ref_time is None:
+        # Load reference_time
+        ref_time_elem = root.find("ReferenceTime")
+        if ref_time_elem is not None and ref_time_elem.text:
+            orbit.reference_time = datetime.fromisoformat(ref_time_elem.text)
+    else:
+        orbit.reference_time = ref_time
 
     t = []
     p = []
     v = []
     # Load times
-    times_elem = root.find("times")
-    if times_elem is not None:
-        t = [float(time_elem.text) for time_elem in times_elem.findall("time")]
-
-    # Load positions
-    positions_elem = root.find("positions")
-    if positions_elem is not None:
-        p = [
-            [float(pos_elem.get("x")), float(pos_elem.get("y")), float(pos_elem.get("z"))]
-            for pos_elem in positions_elem.findall("position")
-        ]
-
-    # Load velocities
-    velocities_elem = root.find("velocities")
-    if velocities_elem is not None:
-        v = [
-            [float(vel_elem.get("x")), float(vel_elem.get("y")), float(vel_elem.get("z"))]
-            for vel_elem in velocities_elem.findall("velocity")
-        ]
+    for vector_elem in root.findall("Vector"):
+        t.append(float(vector_elem.attrib["SecondsFromReference"]))
+        pos_elem = vector_elem.find("Position")
+        p.append([float(pos_elem.find("X").text), float(pos_elem.find("Y").text), float(pos_elem.find("Z").text)])
+        vel_elem = vector_elem.find("Velocity")
+        v.append([float(vel_elem.find("X").text), float(vel_elem.find("Y").text), float(vel_elem.find("Z").text)])
 
     orbit.times = np.array(t)
     orbit.positions = np.array(p)  # Shape: (n, 3)

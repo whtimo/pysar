@@ -57,12 +57,11 @@ def getPolCosFileNamesFromTsx(xml_path: str):
 
 
 def saveToPysarXml(slc, xml_path: str, slcdata: np.ndarray):
-    root = ET.Element("pysar")
-    slc_elem = ET.SubElement(root, "slc")
+    root = ET.Element("PySar")
+    slc_elem = ET.SubElement(root, "Slc")
     slc.metadata.toXml(slc_elem)
-    slc_data_elem = ET.SubElement(slc_elem, "slcdata")
     tiff_name = slc.metadata.acquisition_date.isoformat() + ".slc.tiff"
-    slc.slcdata.toXml(slc_data_elem, tiff_name, xml_path, slcdata)
+    slc.slcdata.toXml(slc_elem, tiff_name, xml_path, slcdata)
     xml_str = ET.tostring(root, encoding="utf-8")
     pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
 
@@ -74,11 +73,11 @@ def fromPysarXml(xml_path: str) -> Slc:
     slc = Slc()
 
     root = ET.parse(xml_path).getroot()
-    slc_elem = root.find("slc")
+    slc_elem = root.find("Slc")
     if slc_elem is None: return None
 
-    slc.metadata = metadata.fromXml(slc_elem)
-    slc.slcdata = cpl_float_slcdata.fromXnl(slc_elem, xml_path)
+    slc.metadata = metadata.fromXml(slc_elem.find("MetaData"))
+    slc.slcdata = cpl_float_slcdata.fromXml(slc_elem, xml_path)
     return slc
 
 def getPysarPathName(slc: Slc, directory: str, overwrite=False) -> pathlib.Path:
@@ -86,8 +85,19 @@ def getPysarPathName(slc: Slc, directory: str, overwrite=False) -> pathlib.Path:
     if path.exists():
         counter = 0
         fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pyear.slc.xml'
-        while overwrite and fullpath.exists():
+        while not overwrite and fullpath.exists():
             counter += 1
             fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pyear.slc.xml'
 
         return fullpath
+
+def fromBzarXml(xml_path: str) -> Slc:
+    slc = Slc()
+
+    root = ET.parse(xml_path).getroot()
+    slc_elem = root.find("SlcImage")
+    if slc_elem is None: return None
+
+    slc.metadata = metadata.fromBzarXml(slc_elem.find("Band"))
+    slc.slcdata = cpl_float_slcdata.fromXml(slc_elem, xml_path)
+    return slc

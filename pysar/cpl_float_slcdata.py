@@ -53,9 +53,8 @@ class CplFloatSlcData(islcdata.ISlcData):
         mem = cpl_float_memory_slcdata.CplFloatMemorySlcData(reduced)
         return mem
 
-def fromXnl(root: ET.Element, xml_file_path:str) -> CplFloatSlcData:
-    slc_elem = root.find("slcdata")
-    file_path_elem = slc_elem.find("path")
+def fromXml(root: ET.Element, xml_file_path:str) -> CplFloatSlcData:
+    file_path_elem = root.find("FilePath")
     file_name = file_path_elem.text
     fullpath = pathlib.Path(xml_file_path).parent / file_name
     slc = CplFloatSlcData(fullpath)

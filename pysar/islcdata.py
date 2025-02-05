@@ -30,6 +30,5 @@ class ISlcData:
             with rasterio.open(absolutePath, "w", **metadata) as dst:
                 dst.write(complexData, 1)  # Write the complex array to the first band
 
-        slc_elem = ET.SubElement(root, "slcdata")
-        file_path_elem = ET.SubElement(root, "path")
+        file_path_elem = ET.SubElement(root, "FilePath")
         file_path_elem.text = relative_path_to_filename

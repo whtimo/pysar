@@ -71,24 +71,32 @@ class Footprint:
 
     def toXml(self, root: ET.Element):
         # Save upper_left
-        upper_left_elem = ET.SubElement(root, "upper_left")
-        upper_left_elem.set("lat", str(self.upper_left[0]))
-        upper_left_elem.set("lon", str(self.upper_left[1]))
+        upper_left_elem = ET.SubElement(root, "CornerUpperLeft")
+        ul_lat_elem = ET.SubElement(upper_left_elem, "Lat")
+        ul_lat_elem.text = str(self.upper_left[0])
+        ul_lon_elem = ET.SubElement(upper_left_elem, "Lon")
+        ul_lon_elem.text = str(self.upper_left[1])
 
         # Save upper_right
-        upper_right_elem = ET.SubElement(root, "upper_right")
-        upper_right_elem.set("lat", str(self.upper_right[0]))
-        upper_right_elem.set("lon", str(self.upper_right[1]))
+        upper_right_elem = ET.SubElement(root, "CornerUpperRight")
+        ur_lat_elem = ET.SubElement(upper_right_elem, "Lat")
+        ur_lat_elem.text = str(self.upper_right[0])
+        ur_lon_elem = ET.SubElement(upper_right_elem, "Lon")
+        ur_lon_elem.text = str(self.upper_right[1])
 
         # Save lower_left
-        lower_left_elem = ET.SubElement(root, "lower_left")
-        lower_left_elem.set("lat", str(self.lower_left[0]))
-        lower_left_elem.set("lon", str(self.lower_left[1]))
+        lower_left_elem = ET.SubElement(root, "CornerLowerLeft")
+        ll_lat_elem = ET.SubElement(lower_left_elem, "Lat")
+        ll_lat_elem.text = str(self.lower_left[0])
+        ll_lon_elem = ET.SubElement(lower_left_elem, "Lon")
+        ll_lon_elem.text = str(self.lower_left[1])
 
         # Save lower_right
-        lower_right_elem = ET.SubElement(root, "lower_right")
-        lower_right_elem.set("lat", str(self.lower_right[0]))
-        lower_right_elem.set("lon", str(self.lower_right[1]))
+        lower_right_elem = ET.SubElement(root, "CornerLowerRight")
+        lr_lat_elem = ET.SubElement(lower_right_elem, "Lat")
+        lr_lat_elem.text = str(self.lower_right[0])
+        lr_lon_elem = ET.SubElement(lower_right_elem, "Lon")
+        lr_lon_elem.text = str(self.lower_right[1])
 
 def interpolate_point(ul, ur, ll, lr, fraction_x, fraction_y):
     # Unpack the coordinates
@@ -158,35 +166,35 @@ def fromTSX(root: ET.Element) -> Footprint:
 def fromXml(root: ET.Element) -> Footprint:
     footprint = Footprint()
     # Load upper_left
-    upper_left_elem = root.find("upper_left")
+    upper_left_elem = root.find("CornerUpperLeft")
     if upper_left_elem is not None:
         footprint.upper_left = [
-            float(upper_left_elem.get("lat")),
-            float(upper_left_elem.get("lon"))
+            float(upper_left_elem.find("Lat").text),
+            float(upper_left_elem.find("Lon").text)
         ]
 
     # Load upper_right
-    upper_right_elem = root.find("upper_right")
+    upper_right_elem = root.find("CornerUpperRight")
     if upper_right_elem is not None:
         footprint.upper_right = [
-            float(upper_right_elem.get("lat")),
-            float(upper_right_elem.get("lon"))
+            float(upper_right_elem.find("Lat").text),
+            float(upper_right_elem.find("Lon").text)
         ]
 
     # Load lower_left
-    lower_left_elem = root.find("lower_left")
+    lower_left_elem = root.find("CornerLowerLeft")
     if lower_left_elem is not None:
         footprint.lower_left = [
-            float(lower_left_elem.get("lat")),
-            float(lower_left_elem.get("lon"))
+            float(lower_left_elem.find("Lat").text),
+            float(lower_left_elem.find("Lon").text)
         ]
 
     # Load lower_right
-    lower_right_elem = root.find("lower_right")
+    lower_right_elem = root.find("CornerLowerRight")
     if lower_right_elem is not None:
         footprint.lower_right = [
-            float(lower_right_elem.get("lat")),
-            float(lower_right_elem.get("lon"))
+            float(lower_right_elem.find("Lat").text),
+            float(lower_right_elem.find("Lon").text)
         ]
 
     return footprint
