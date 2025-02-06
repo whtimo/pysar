@@ -111,6 +111,9 @@ class Burst:
         y = self.azimuth_time_to_pixel(az_time)
         return [x, y]
 
+    def is_valid(self, x, y):
+        return 0 <= x < self.number_columns and 0 <= y < self.number_rows
+
     def toXml(self, root: ET.Element):
         # Save range_time_to_first_pixel
         if self.range_time_to_first_pixel is not None:
