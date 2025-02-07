@@ -172,4 +172,4 @@ class Baseline:
         self.temporal_baseline = (secondary_meta.acquisition_date - primary_meta.acquisition_date).days
 
     def perpendicular_baseline(self, x: float, y: float, height: float = 0.0) -> float:
-        return self.__model.predict([[x, y, height]])
+        return self.__model.predict([[x, y, height]])[0]

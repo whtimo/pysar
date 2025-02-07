@@ -84,10 +84,10 @@ def getPysarPathName(slc: Slc, directory: str, overwrite=False) -> pathlib.Path:
     path = pathlib.Path(directory)
     if path.exists():
         counter = 0
-        fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pyear.slc.xml'
+        fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pysar.slc.xml'
         while not overwrite and fullpath.exists():
             counter += 1
-            fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pyear.slc.xml'
+            fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pysar.slc.xml'
 
         return fullpath
 

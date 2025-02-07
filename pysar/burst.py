@@ -111,8 +111,8 @@ class Burst:
         y = self.azimuth_time_to_pixel(az_time)
         return [x, y]
 
-    def is_valid(self, x, y):
-        return 0 <= x < self.number_columns and 0 <= y < self.number_rows
+    def is_valid(self, x, y, winx = 0, winy = 0):
+        return winx <= x < self.number_columns-winx and winy <= y < self.number_rows - winy
 
     def toXml(self, root: ET.Element):
         # Save range_time_to_first_pixel
@@ -234,7 +234,7 @@ def fromXml(root : ET.Element, orbit) -> Burst:
     return burst
 
 
-def fromBzarXml(root: ET.Element, type: str, orbit, footprint = None) -> Burst:
+def fromBzarXml(root: ET.Element, orbit, footprint = None) -> Burst:
     burst = Burst()
     burst.orbit = orbit
 
@@ -253,10 +253,7 @@ def fromBzarXml(root: ET.Element, type: str, orbit, footprint = None) -> Burst:
     if column_spacing_elem is not None and column_spacing_elem.text:
         burst.column_spacing = float(column_spacing_elem.text)
 
-    if type == 'tsx':
-        burst.column_spacing /= 2.0
-
-        # Load row_spacing
+    # Load row_spacing
     row_spacing_elem = root.find("SlcImageRowSpacing")
     if row_spacing_elem is not None and row_spacing_elem.text:
         burst.row_spacing = float(row_spacing_elem.text)

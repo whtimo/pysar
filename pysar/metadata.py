@@ -244,52 +244,51 @@ def fromBzarXml(root: ET.Element) -> MetaData:
     metadata = MetaData()
     meta_elem = root.find("MetaData")
 
-    ref_time_elem = meta_elem.find("ReferenceTime")
-    reference_time = datetime.datetime.fromisoformat(ref_time_elem.text)
+    #ref_time_elem = meta_elem.find("ReferenceTime")
+    #reference_time = datetime.datetime.fromisoformat(ref_time_elem.text)
 
     orbit_elem = meta_elem.find("Orbit")
     metadata.orbit = orbit.fromXml(orbit_elem)
 
-    meta_type = meta_elem.attrib["burst_type"]
-    if meta_type == "tsx":
-        burst_elem = meta_elem.find("Bursts/Burst")
-        metadata.burst = burst.fromBzarXml(burst_elem, meta_type, metadata.orbit)
+    burst_elem = meta_elem.find("Burst")
+    metadata.burst = burst.fromBzarXml(burst_elem, metadata.orbit)
 
-        geogrid_elem = meta_elem.find("GeoGrid")
+    inc_elem = meta_elem.find("IncidenceInterpolator")
 
-        def parse_grid_points(root: ET.Element):
+    def parse_grid_points(root: ET.Element):
 
-            # Extract column and incidence angle values
-            columns = []
-            incidence_angles = []
+        # Extract column and incidence angle values
+        columns = []
+        incidence_angles = []
 
-            for grid_point in root.findall('Grid'):
-                col = int(grid_point.find('Samples').text)
-                if not columns.__contains__(col):
-                    inc = float(grid_point.find('IncidenceAngle').text)
-                    columns.append(col)
-                    incidence_angles.append(inc)
+        for grid_point in root.findall('sample'):
+            col = int(grid_point.attrib['column'])
+            if not columns.__contains__(col):
+                inc = float(grid_point.attrib['angle'])
+                columns.append(col)
+                incidence_angles.append(inc)
 
-            return columns, incidence_angles
+        return columns, incidence_angles
 
-        def create_incidence_angle_interpolator(root: ET.Element):
-            # Parse the grid points
-            columns, incidence_angles = parse_grid_points(root)
+    def create_incidence_angle_interpolator(root: ET.Element):
+        # Parse the grid points
+        columns, incidence_angles = parse_grid_points(root)
 
-            # Sort columns and incidence angles (in case they are not ordered)
-            sorted_indices = np.argsort(columns)
-            columns_sorted = np.array(columns)[sorted_indices]
-            incidence_angles_sorted = np.array(incidence_angles)[sorted_indices]
+        # Sort columns and incidence angles (in case they are not ordered)
+        sorted_indices = np.argsort(columns)
+        columns_sorted = np.array(columns)[sorted_indices]
+        incidence_angles_sorted = np.array(incidence_angles)[sorted_indices]
 
-            # Create an interpolation function
-            interpolator = interp1d(columns_sorted, incidence_angles_sorted, kind='cubic', fill_value='extrapolate')
+        # Create an interpolation function
+        interpolator = interp1d(columns_sorted, incidence_angles_sorted, kind='cubic', fill_value='extrapolate')
 
-            return interpolator
+        return interpolator
 
-        metadata.incidence_interpolator = create_incidence_angle_interpolator(geogrid_elem)
+    metadata.incidence_interpolator = create_incidence_angle_interpolator(inc_elem)
 
     footprint_elem = meta_elem.find("Footprint")
     metadata.footprint = footprint.fromXml(footprint_elem)
+    metadata.burst.footprint = metadata.footprint
 
     # Load acquisition_date
     acquisition_date_elem = meta_elem.find("AcquisitionDate")

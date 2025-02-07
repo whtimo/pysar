@@ -1,5 +1,5 @@
-import sys
-sys.path.extend(['/Users/timo/src/pysar'])
+# import sys
+# sys.path.extend(['/Users/timo/src/pysar'])
 
 import matplotlib.pyplot as plt
 from pysar import slc
