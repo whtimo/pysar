@@ -1,0 +1,46 @@
+<!-- ?xml version="1.0" encoding="UTF-8"? -->
+<kml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Placemark>
+  <name>
+C527_N119_D_ST_spot_027_R_2023-04-25T22:29:58.531515Z
+</name>
+  <LookAt>
+    <longitude>
+114.53
+</longitude>
+    <latitude>
+30.468
+</latitude>
+    <range>
+250000.0
+</range>
+    <tilt>0</tilt>
+    <heading>0</heading>
+  </LookAt>
+  <Style id="khStyle813">
+    <LineStyle id="khLineStyle817">
+      <color>ffff55ff</color>
+    </LineStyle>
+    <PolyStyle id="khPolyStyle818">
+      <color>7fff55ff</color>
+      <outline>0</outline>
+    </PolyStyle>
+  </Style>
+  <Polygon id="khPolygon820">
+    <extrude>1</extrude>
+    <tessellate>1</tessellate>
+    <altitudeMode>relativeToGround</altitudeMode>
+    <outerBoundaryIs>
+      <LinearRing id="khLinearRing821">
+        <coordinates>
+1.145005466400381E+02,3.048607384879606E+01,8000.0 
+1.144950472461517E+02,3.046027206744940E+01,8000.0 
+1.145594474109282E+02,3.044996934014154E+01,8000.0 
+1.145648560454263E+02,3.047578833833430E+01,8000.0 
+1.145005466400381E+02,3.048607384879606E+01,8000.0 
+        </coordinates>
+      </LinearRing>
+    </outerBoundaryIs>
+  </Polygon>
+</Placemark>
+</kml>

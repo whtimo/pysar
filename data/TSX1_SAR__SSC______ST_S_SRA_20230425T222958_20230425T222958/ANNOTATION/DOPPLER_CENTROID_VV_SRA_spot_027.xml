@@ -1,0 +1,33 @@
+<focussedDopplerCentroid xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../SUPPORT/focussedDopplerCentroid.xsd">
+  <polLayer>VV</polLayer>
+  <beamID>spot_027</beamID>
+  <DRAoffset>SRA</DRAoffset>
+  <numberOfBursts>1</numberOfBursts>
+  <point azimuth="start" range="near">
+    <value>-1.36154187955031739E+03</value>
+  </point>
+  <point azimuth="start" range="mid">
+    <value>-1.35847538317172803E+03</value>
+  </point>
+  <point azimuth="start" range="far">
+    <value>-1.35543125736499178E+03</value>
+  </point>
+  <point azimuth="center" range="near">
+    <value>-1.15259658433802684E+02</value>
+  </point>
+  <point azimuth="center" range="mid">
+    <value>-1.15545426385233128E+02</value>
+  </point>
+  <point azimuth="center" range="far">
+    <value>-1.15831109236022883E+02</value>
+  </point>
+  <point azimuth="stop" range="near">
+    <value>1.13102256268271185E+03</value>
+  </point>
+  <point azimuth="stop" range="mid">
+    <value>1.12738453040126160E+03</value>
+  </point>
+  <point azimuth="stop" range="far">
+    <value>1.12376903889294590E+03</value>
+  </point>
+</focussedDopplerCentroid>
