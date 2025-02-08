@@ -1,0 +1,34 @@
+
+from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, coherence, flat_interferogram
+import pandas as pd
+import rasterio
+import numpy as np
+import matplotlib.pyplot as plt
+
+if __name__ == "__main__":
+
+    file_pair = '/Users/timo/Documents/WuhanEast/pysar/TDX-1_2018-07-24__TDX-1_2018-08-26.pysar.resampled.xml'
+    output_path = '/Users/timo/Documents/WuhanEast/pysar'
+
+    pair = resampled_pair.ResampledPair(file_pair)
+    #phase_model, poly = flat_interferogram.get_flat_phase_model(pair)
+    phase_model, poly = flat_interferogram.get_flat_phase_model(pair)
+
+    flat_phase = flat_interferogram.create_flattened_interferogram(pair, phase_model, poly)
+    coh_data = coherence.compute_coherence(pair.master.slcdata.read(), pair.slave.slcdata.read(), flat_interfero=flat_phase)
+
+    coh = coherence.createCoherence(pair.master.metadata, pair.slave.metadata, coh_data)
+    coh.save(coherence.createFilename(pair.master.metadata, pair.slave.metadata, output_path))
+
+    # fig, ax1 = plt.subplots(1, 1, figsize=(6, 6))
+    #
+    # # Plot the estimated dx shifts
+    # im1 = ax1.imshow(coh, origin='lower', cmap='grey')
+    # ax1.set_title('Coherence')
+    # ax1.set_xlabel('X')
+    # ax1.set_ylabel('Y')
+    # fig.colorbar(im1, ax=ax1, label='coherence')
+    #
+    # plt.tight_layout()
+    # plt.show()
+

@@ -1,0 +1,57 @@
+from numpy.ma.extras import flatten_inplace
+
+from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, flat_interferogram
+import pandas as pd
+import rasterio
+import numpy as np
+import matplotlib.pyplot as plt
+
+if __name__ == "__main__":
+
+    file_pair = '/Users/timo/Documents/WuhanEast/pysar/TDX-1_2018-07-24__TDX-1_2018-08-26.pysar.resampled.xml'
+    output_path = '/Users/timo/Documents/WuhanEast/pysar'
+
+    pair = resampled_pair.ResampledPair(file_pair)
+    phase_model, poly = flat_interferogram.get_flat_phase_model(pair)
+
+    master_shape = (pair.master.metadata.number_rows, pair.master.metadata.number_columns)  # (height, width)
+
+    # Generate sample data for x and y coordinates
+    x = np.linspace(0, master_shape[1] - 1, int(master_shape[1] / 100))
+    y = np.linspace(0, master_shape[0] - 1, int(master_shape[0] / 100))
+    xx, yy = np.meshgrid(x, y)
+    X = np.column_stack((xx.ravel(), yy.ravel()))
+    point_poly = poly.transform(X)
+
+    pred_phase = phase_model.predict(point_poly).reshape(xx.shape)
+    I = np.exp(1j * pred_phase)  # Example complex interferogram
+    pred_wrapped_phase = np.angle(I)
+
+    fig, ax1 = plt.subplots(1, 1, figsize=(6, 6))
+
+    # Plot the estimated dx shifts
+    im1 = ax1.imshow(pred_wrapped_phase, extent=[0, pair.master.metadata.number_columns, 0, pair.master.metadata.number_rows], origin='lower', cmap='hsv')
+    ax1.set_title('Estimated Topographic Phase')
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y')
+    fig.colorbar(im1, ax=ax1, label='phase')
+
+    plt.tight_layout()
+    plt.show()
+
+    flat_phase = flat_interferogram.create_flattened_interferogram(pair, phase_model, poly)
+
+    # fig, ax1 = plt.subplots(1, 1, figsize=(6, 6))
+    #
+    # # Plot the estimated dx shifts
+    # im1 = ax1.imshow(np.angle(flat_phase), extent=[0, pair.master.metadata.number_columns, 0, pair.master.metadata.number_rows], origin='lower', cmap='hsv')
+    # ax1.set_title('Flattened Interferogram')
+    # ax1.set_xlabel('X')
+    # ax1.set_ylabel('Y')
+    # fig.colorbar(im1, ax=ax1, label='phase')
+    #
+    # plt.tight_layout()
+    # plt.show()
+
+    flatty = flat_interferogram.createFlatInterferogram(pair.master.metadata, pair.slave.metadata, flat_phase)
+    flatty.save(flat_interferogram.createFilename(pair.master.metadata, pair.slave.metadata, output_path))

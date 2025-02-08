@@ -10,8 +10,6 @@ class ResampledPair:
         self.resampled_slave = None
         self.perpendicular_baseline = None
         self.temporal_baseline = None
-        self.shift_x = None
-        self.shift_y = None
 
         if filepath:
             root = ET.parse(filepath).getroot()
@@ -19,14 +17,12 @@ class ResampledPair:
             if pair_elem:
                 self.perpendicular_baseline =  float(pair_elem.attrib['perpendicular_baseline'])
                 self.temporal_baseline = int(pair_elem.attrib['temporal_baseline'])
-                self.shift_x = float(pair_elem.attrib['shift_x'])
-                self.shift_y = float(pair_elem.attrib['shift_y'])
                 self.master = slc.Slc()
-                self.master.metadata = metadata.fromXml(pair_elem.find("Master"))
+                self.master.metadata = metadata.fromXml(pair_elem.find("Master/MetaData"))
                 self.master.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("Master"), filepath)
                 self.slave = slc.Slc()
-                self.slave.metadata = metadata.fromXml(pair_elem.find("ResampledSlave"))
-                self.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("ResampledSlave"), filepath)
+                self.slave.metadata = metadata.fromXml(pair_elem.find("Slave/MetaData"))
+                self.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("Slave"), filepath)
 
 
     def save(self, filepath:pathlib.Path, master_tiff_path:pathlib.Path, slave_tiff_path: pathlib.Path):
@@ -34,8 +30,6 @@ class ResampledPair:
         pair_elem = ET.SubElement(root, "ResampledPair")
         pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
         pair_elem.attrib["temporal_baseline"] = str(self.temporal_baseline)
-        pair_elem.attrib["shift_x"] = str(self.shift_x)
-        pair_elem.attrib["shift_y"] = str(self.shift_y)
         master_elem = ET.SubElement(pair_elem, "Master")
         self.master.metadata.toXml(master_elem)
         self.master.slcdata.toXml(master_elem, master_tiff_path.relative_to(filepath.parent))
@@ -65,6 +59,23 @@ def createResampledPair(master: slc.Slc, slave: slc.Slc, resampled_slave_data: n
     shift = coregistration.orbit_shift(master.metadata.burst, slave.metadata.burst)
     pair.shift_x = shift[0]
     pair.shift_y = shift[1]
+
+    return pair
+
+def fromBzarXml(xml_path: str) -> ResampledPair:
+    pair = ResampledPair()
+
+    root = ET.parse(xml_path).getroot()
+    pair_elem = root.find("ResampledPair")
+    if pair_elem:
+        pair.perpendicular_baseline = float(pair_elem.attrib['perpendicularBaseline'])
+        pair.temporal_baseline = int(pair_elem.attrib['temporalBaseline'])
+        pair.master = slc.Slc()
+        pair.master.metadata = metadata.fromBzarXml(pair_elem.find("MasterSlcImage/Band"))
+        pair.master.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("MasterSlcImage"), xml_path)
+        pair.slave = slc.Slc()
+        pair.slave.metadata = metadata.fromBzarXml(pair_elem.find("SlaveSlcImage/Band"))
+        pair.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("SlaveSlcImage"), xml_path)
 
     return pair
 

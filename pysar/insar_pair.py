@@ -85,6 +85,27 @@ def createInSarPair(master: pysar.slc, slave: pysar.slc, bese_line: baseline.Bas
 
     return pair
 
+def fromBzarXml(xml_path: str) -> InSarPair:
+    pair = InSarPair()
+
+    root = ET.parse(xml_path).getroot()
+    pair_elem = root.find("CoregistrationPair")
+    if pair_elem:
+        pair.shift_x = float(pair_elem.attrib['offset_sample'])
+        pair.shift_y = float(pair_elem.attrib['offset_row'])
+        pair.master = slc.Slc()
+        pair.master.metadata = metadata.fromBzarXml(pair_elem.find("MasterSlcImage/Band"))
+        pair.master.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("MasterSlcImage"), xml_path)
+        pair.slave = slc.Slc()
+        pair.slave.metadata = metadata.fromBzarXml(pair_elem.find("SlaveSlcImage/Band"))
+        pair.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("SlaveSlcImage"), xml_path)
+
+        base = baseline.Baseline(pair.master.metadata, pair.slave.metadata)
+        pair.perpendicular_baseline = base.perpendicular_baseline(pair.master.metadata.number_columns / 2, pair.master.metadata.number_rows / 2)
+        pair.temporal_baseline = base.temporal_baseline
+
+    return pair
+
 def createFilename(pair: InSarPair, directory:str) -> pathlib.Path:
 
     return pathlib.Path(directory) / f'{pair.master.metadata.sensor}_{pair.master.metadata.acquisition_date.isoformat()}__{pair.slave.metadata.sensor}_{pair.slave.metadata.acquisition_date.isoformat()}.pysar.pair.xml'

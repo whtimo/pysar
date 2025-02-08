@@ -250,7 +250,7 @@ def fromBzarXml(root: ET.Element) -> MetaData:
     orbit_elem = meta_elem.find("Orbit")
     metadata.orbit = orbit.fromXml(orbit_elem, reference_time)
 
-    burst_elem = meta_elem.find("Burst")
+    burst_elem = meta_elem.find("Bursts/Burst")
     metadata.burst = burst.fromBzarXml(burst_elem, metadata.orbit)
 
     inc_elem = meta_elem.find("GeoGrid")
@@ -262,9 +262,9 @@ def fromBzarXml(root: ET.Element) -> MetaData:
         incidence_angles = []
 
         for grid_point in root.findall('Grid'):
-            col = int(grid_point.attrib['column'])
+            col = int(grid_point.find('Samples').text)
             if not columns.__contains__(col):
-                inc = float(grid_point.attrib['angle'])
+                inc = float(grid_point.find('IncidenceAngle').text)
                 columns.append(col)
                 incidence_angles.append(inc)
 
