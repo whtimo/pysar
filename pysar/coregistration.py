@@ -84,7 +84,7 @@ def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaDat
                 #if max_corr > corr_threshold:
 
                 result.loc[len(result)] = [m_x, m_y, coarse_shift_x-shift[0], coarse_shift_y-shift[1]]
-                print(f'Estimating Subpixel Shifts: {len(result)} / {points}')
+                print(f'Estimating Subpixel Shifts: {len(result)} / {points}: {coarse_shift_x-shift[0]}, {coarse_shift_y-shift[1]}')
                 if len(result) >= points:
                     break
 

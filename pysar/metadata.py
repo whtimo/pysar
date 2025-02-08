@@ -244,16 +244,16 @@ def fromBzarXml(root: ET.Element) -> MetaData:
     metadata = MetaData()
     meta_elem = root.find("MetaData")
 
-    #ref_time_elem = meta_elem.find("ReferenceTime")
-    #reference_time = datetime.datetime.fromisoformat(ref_time_elem.text)
+    ref_time_elem = meta_elem.find("ReferenceTime")
+    reference_time = datetime.datetime.fromisoformat(ref_time_elem.text)
 
     orbit_elem = meta_elem.find("Orbit")
-    metadata.orbit = orbit.fromXml(orbit_elem)
+    metadata.orbit = orbit.fromXml(orbit_elem, reference_time)
 
     burst_elem = meta_elem.find("Burst")
     metadata.burst = burst.fromBzarXml(burst_elem, metadata.orbit)
 
-    inc_elem = meta_elem.find("IncidenceInterpolator")
+    inc_elem = meta_elem.find("GeoGrid")
 
     def parse_grid_points(root: ET.Element):
 
@@ -261,7 +261,7 @@ def fromBzarXml(root: ET.Element) -> MetaData:
         columns = []
         incidence_angles = []
 
-        for grid_point in root.findall('sample'):
+        for grid_point in root.findall('Grid'):
             col = int(grid_point.attrib['column'])
             if not columns.__contains__(col):
                 inc = float(grid_point.attrib['angle'])

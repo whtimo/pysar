@@ -23,14 +23,23 @@ class InSarPair:
                 self.shift_x = float(pair_elem.attrib['shift_x'])
                 self.shift_y = float(pair_elem.attrib['shift_y'])
                 self.master = slc.Slc()
-                self.master.metadata = metadata.fromBzarXml(pair_elem.find("Master"))
+                self.master.metadata = metadata.fromXml(pair_elem.find("Master/MetaData"))
                 self.master.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("Master"), filepath)
                 self.slave = slc.Slc()
-                self.slave.metadata = metadata.fromBzarXml(pair_elem.find("Slave"))
+                self.slave.metadata = metadata.fromXml(pair_elem.find("Slave/MetaData"))
                 self.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("Slave"), filepath)
 
 
-    def save(self, filepath:str, savetiff:bool = True):
+    def __getTiffName(self, metadata, path, overwrite: bool = False):
+        counter = 0
+        tiff_name = f'{metadata.sensor}_{counter}_{metadata.acquisition_date.isoformat()}.slc.tiff'
+        while (pathlib.Path(path) / tiff_name).exists() and not overwrite:
+            counter += 1
+            tiff_name = f'{metadata.sensor}_{counter}_{metadata.acquisition_date.isoformat()}.slc.tiff'
+
+        return tiff_name
+
+    def save(self, filepath:str, savetiff:bool = True, overwrite:bool = True):
         root = ET.Element("PySar")
         pair_elem = ET.SubElement(root, "Pair")
         pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
@@ -40,7 +49,7 @@ class InSarPair:
         master_elem = ET.SubElement(pair_elem, "Master")
         self.master.metadata.toXml(master_elem)
         if savetiff:
-            tiff_name = self.master.metadata.acquisition_date.isoformat() + ".slc.tiff"
+            tiff_name = self.__getTiffName(self.master.metadata, filepath, overwrite)
             self.master.slcdata.toXml(master_elem, tiff_name, filepath, self.master.slcdata.read())
         else:
             self.master.slcdata.toXml(master_elem, self.master.slcdata.filename)
@@ -48,7 +57,7 @@ class InSarPair:
         slave_elem = ET.SubElement(pair_elem, "Slave")
         self.slave.metadata.toXml(slave_elem)
         if savetiff:
-            tiff_name = self.slave.metadata.acquisition_date.isoformat() + ".slc.tiff"
+            tiff_name = self.__getTiffName(self.slave.metadata, filepath, overwrite)
             self.slave.slcdata.toXml(slave_elem, tiff_name, filepath, self.slave.slcdata.read())
         else:
             self.slave.slcdata.toXml(slave_elem, self.slave.slcdata.filename)

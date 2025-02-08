@@ -22,10 +22,10 @@ class ResampledPair:
                 self.shift_x = float(pair_elem.attrib['shift_x'])
                 self.shift_y = float(pair_elem.attrib['shift_y'])
                 self.master = slc.Slc()
-                self.master.metadata = metadata.fromBzarXml(pair_elem.find("Master"))
+                self.master.metadata = metadata.fromXml(pair_elem.find("Master"))
                 self.master.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("Master"), filepath)
                 self.slave = slc.Slc()
-                self.slave.metadata = metadata.fromBzarXml(pair_elem.find("ResampledSlave"))
+                self.slave.metadata = metadata.fromXml(pair_elem.find("ResampledSlave"))
                 self.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("ResampledSlave"), filepath)
 
 
