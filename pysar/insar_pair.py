@@ -66,20 +66,20 @@ class InSarPair:
                 xml_filename = pathlib.Path(
                     directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}__{self.slave.metadata.sensor}_{self.slave.metadata.acquisition_date.isoformat()}.pysar.pair.xml'
 
-            if master_tiff_fn is not None:
+            if master_tiff_filename is not None:
                 master_tiff_fn = master_tiff_filename
             else:
                 master_tiff_fn = pathlib.Path(
                     directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}.slc.tiff'
 
-            if slave_tiff_fn is not None:
+            if slave_tiff_filename is not None:
                 slave_tiff_fn = slave_tiff_filename
             else:
                 slave_tiff_fn = pathlib.Path(
                     directory) / f'{self.slave.metadata.sensor}_{counter}_{self.slave.metadata.acquisition_date.isoformat()}.slc.tiff'
 
 
-        if len(xml_filename) > 0:
+        if len(str(xml_filename)) > 0:
             root = ET.Element("PySar")
             pair_elem = ET.SubElement(root, "Pair")
             pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
@@ -116,7 +116,7 @@ def createInSarPair(master: slc.Slc, slave: slc.Slc, base_line: baseline.Baselin
     pair.perpendicular_baseline = base_line.perpendicular_baseline(master.metadata.number_columns / 2, master.metadata.number_rows / 2)
     pair.temporal_baseline = base_line.temporal_baseline
 
-    shift = coregistration.orbit_shift(master.metadata.burst, slave.metadata.burst)
+    shift = coregistration.orbit_shift(master.metadata._burst, slave.metadata._burst)
     pair.shift_x = shift[0]
     pair.shift_y = shift[1]
 

@@ -13,6 +13,7 @@ class Coherence:
         self.slave_metadata = None
         self.coherence_tiff_path = None
         self.data = None
+        self._coherence_data = None
 
         if filepath:
             root = ET.parse(filepath).getroot()
@@ -23,71 +24,97 @@ class Coherence:
 
                 self.coherence_tiff_path = pathlib.Path(filepath).parent / pair_elem.find("FilePath").text
 
-    def __getTiffName(self, path, overwrite: bool = True):
-        counter = 0
-        tiff_name = f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.coherence.tiff'
-        while (pathlib.Path(path) / tiff_name).exists() and not overwrite:
-            counter += 1
-            tiff_name = f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.coherence.tiff'
+    def save(self, directory: str = None, filename: str = None, tiff_filename: str = None, overwrite: bool = True,):
 
-        return tiff_name
+        xml_filename = ''
+        coherence_tiff_fn = ''
 
-    def save(self, filepath:str):
-        root = ET.Element("PySar")
-        pair_elem = ET.SubElement(root, "Coherence")
-        master_elem = ET.SubElement(pair_elem, "Master")
-        self.master_metadata.toXml(master_elem)
-        slave_elem = ET.SubElement(pair_elem, "Slave")
-        self.slave_metadata.toXml(slave_elem)
-        tiff_name = self.__getTiffName(filepath, True)
-        self.__openfile()
+        if directory is None:
+            if filename is not None and tiff_filename is not None:
+                xml_filename = pathlib.Path(filename)
+                coherence_tiff_fn = pathlib.Path(tiff_filename)
+        else:
+            counter = 0
+            xml_filename = pathlib.Path(
+                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.coherence.xml'
+            coherence_tiff_fn = pathlib.Path(
+                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.coherence.tiff'
 
-        metadata = {
-            "driver": "GTiff",  # GeoTIFF format
-            "height": self.data.shape[0],  # Number of rows
-            "width": self.data.shape[1],  # Number of columns
-            "count": 1,  # Single band (complex data)
-            "dtype": np.float32,  # Complex float32 data type
-            "transform": rasterio.Affine.identity(),  # Identity transform (no georeferencing)
-        }
+            while not overwrite and xml_filename.exists():
+                counter += 1
+                xml_filename = pathlib.Path(
+                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.coherence.xml'
+                coherence_tiff_fn = pathlib.Path(
+                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.coherence.tiff'
 
-        with rasterio.open(pathlib.Path(filepath).parent / tiff_name, "w", **metadata) as dst:
-            dst.write(self.data, 1)  # Write the complex array to the first band
+        if len(str(xml_filename)) > 0:
 
-        file_path_elem = ET.SubElement(pair_elem, "FilePath")
-        file_path_elem.text = str(tiff_name)
-        xml_str = ET.tostring(root, encoding="utf-8")
-        pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+            root = ET.Element("PySar")
+            pair_elem = ET.SubElement(root, "Coherence")
+            master_elem = ET.SubElement(pair_elem, "Master")
+            self.master_metadata.toXml(master_elem)
+            slave_elem = ET.SubElement(pair_elem, "Slave")
+            self.slave_metadata.toXml(slave_elem)
 
-        # Write the pretty-printed XML to a file
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(pretty_xml)
+            if overwrite or not coherence_tiff_fn.exists():
+                metadata = {
+                    "driver": "GTiff",  # GeoTIFF format
+                    "height": self.getHeight(),  # Number of rows
+                    "width": self.getWidth(),  # Number of columns
+                    "count": 1,  # Single band (complex data)
+                    "dtype": np.float32,  # Complex float32 data type
+                    "transform": rasterio.Affine.identity(),  # Identity transform (no georeferencing)
+                }
+
+                with rasterio.open(coherence_tiff_fn, "w", **metadata) as dst:
+                    dst.write(self.read(), 1)  # Write the complex array to the first band
+
+            file_path_elem = ET.SubElement(pair_elem, "FilePath")
+            file_path_elem.text = str(coherence_tiff_fn.relative_to(xml_filename.parent))
+            xml_str = ET.tostring(root, encoding="utf-8")
+            pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+
+            # Write the pretty-printed XML to a file
+            with open(xml_filename, "w", encoding="utf-8") as f:
+                f.write(pretty_xml)
 
 
     def __openfile(self):
-        if self.data is None:
+        if self.data is None and self.coherence_tiff_path is not None:
             self.data = rasterio.open(self.coherence_tiff_path)
 
     def getWidth(self) -> int:
         self.__openfile()
-        return self.data.width
+        if self.data is None:
+            return self._coherence_data.shape[1]
+        else:
+            return self.data.width
 
     def getHeight(self) -> int:
         self.__openfile()
-        return self.data.height
+        if self.data is None:
+            return self._coherence_data.shape[0]
+        else:
+            return self.data.height
 
     def read(self, window: Window = None) -> np.ndarray:
         self.__openfile()
-        if window is None:
-            return self.data.read(1)
+        if self.data is None:
+            if window is None:
+                return self._coherence_data
+            else:
+                return self._coherence_data[window.row_off:window.row_off+window.height,window.col_off:window.col_off+window.width]
         else:
-            return self.data.read(1, window=window)
+            if window is None:
+                return self.data.read(1)
+            else:
+                return self.data.read(1, window=window)
 
 def createCoherence(master: metadata.MetaData, slave: metadata.MetaData, coherence_data: np.ndarray):
     coh = Coherence()
     coh.master_metadata = master
     coh.slave_metadata = slave
-    coh.data = coherence_data
+    coh._coherence_data = coherence_data
 
     return coh
 
@@ -148,12 +175,3 @@ def compute_coherence(master, slave, flat_interfero: np.ndarray = None, window_s
 
     return coherence
 
-# def create_flattened_interferogram(pair: resampled_pair.ResampledPair, window_size=5, phase_model=None, poly=None):
-#     master = pair.master.slcdata.read()
-#     slave = pair.slave.slcdata.read()
-#
-#     coherence = compute_coherence(master, slave, window_size=window_size)
-
-def createFilename(master: metadata.MetaData, slave: metadata.MetaData, directory:str) -> pathlib.Path:
-    xml_path = pathlib.Path(directory) / f'{master.sensor}_{master.acquisition_date.isoformat()}__{slave.sensor}_{slave.acquisition_date.isoformat()}.pysar.coherence.xml'
-    return xml_path

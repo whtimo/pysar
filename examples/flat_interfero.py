@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    file_pair = '/Users/timo/Documents/WuhanEast/pysar/TDX-1_2018-07-24__TDX-1_2018-08-26.pysar.resampled.xml'
+    file_pair = '/Users/timo/Documents/WuhanEast/pysar/TDX-1_0_2018-07-24__TDX-1_2018-08-26.pysar.resampled.xml'
     output_path = '/Users/timo/Documents/WuhanEast/pysar'
 
     pair = resampled_pair.ResampledPair(file_pair)
@@ -39,17 +39,5 @@ if __name__ == "__main__":
 
     flat_phase = flat_interferogram.create_flattened_interferogram(pair, phase_model, poly)
 
-    # fig, ax1 = plt.subplots(1, 1, figsize=(6, 6))
-    #
-    # # Plot the estimated dx shifts
-    # im1 = ax1.imshow(np.angle(flat_phase), extent=[0, pair.master.metadata.number_columns, 0, pair.master.metadata.number_rows], origin='lower', cmap='hsv')
-    # ax1.set_title('Flattened Interferogram')
-    # ax1.set_xlabel('X')
-    # ax1.set_ylabel('Y')
-    # fig.colorbar(im1, ax=ax1, label='phase')
-    #
-    # plt.tight_layout()
-    # plt.show()
-
     flatty = flat_interferogram.createFlatInterferogram(pair.master.metadata, pair.slave.metadata, flat_phase)
-    flatty.save(flat_interferogram.createFilename(pair.master.metadata, pair.slave.metadata, output_path))
+    flatty.save(directory=output_path)

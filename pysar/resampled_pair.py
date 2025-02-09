@@ -25,7 +25,7 @@ class ResampledPair:
                 self.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("Slave"), filepath)
 
 
-    def save(self,  directory: str = None, filename: str = None, master_tiff_filename: str = None, slave_tiff_filename: str = None, overwrite: bool = False):
+    def save(self,  directory: str = None, filename: str = None, master_tiff_filename: str = None, slave_tiff_filename: str = None, overwrite: bool = False)-> pathlib.Path:
         xml_filename = ''
         master_tiff_fn = ''
         slave_tiff_fn = ''
@@ -45,13 +45,13 @@ class ResampledPair:
                 xml_filename = pathlib.Path(
                     directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}__{self.slave.metadata.sensor}_{self.slave.metadata.acquisition_date.isoformat()}.pysar.resampled.xml'
 
-            if master_tiff_fn is not None:
+            if master_tiff_filename is not None:
                 master_tiff_fn = master_tiff_filename
             else:
                 master_tiff_fn = pathlib.Path(
                     directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}.slc.tiff'
 
-            if slave_tiff_fn is not None:
+            if slave_tiff_filename is not None:
                 slave_tiff_fn = slave_tiff_filename
             else:
                 slave_tiff_fn = pathlib.Path(
@@ -61,7 +61,7 @@ class ResampledPair:
                     slave_tiff_fn = pathlib.Path(
                         directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}__{self.slave.metadata.sensor}_{self.slave.metadata.acquisition_date.isoformat()}.slc.resampled.tiff'
 
-        if len(xml_filename) > 0:
+        if len(str(xml_filename)) > 0:
             root = ET.Element("PySar")
             pair_elem = ET.SubElement(root, "ResampledPair")
             pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
@@ -85,18 +85,22 @@ class ResampledPair:
             with open(xml_filename, "w", encoding="utf-8") as f:
                 f.write(pretty_xml)
 
-def createResampledPair(master: slc.Slc, slave: slc.Slc, resampled_slave_data: np.ndarray, bese_line: baseline.Baseline = None):
+            return pathlib.Path(master_tiff_fn)
+        else:
+            return pathlib.Path()
+
+def createResampledPair(master: slc.Slc, slave: slc.Slc, resampled_slave_data: np.ndarray, base_line: baseline.Baseline = None):
     pair = ResampledPair()
     pair.master = master
     pair.slave = slave
     pair.slave.slcdata = cpl_float_memory_slcdata.CplFloatMemorySlcData(resampled_slave_data)
-    if bese_line is None:
+    if base_line is None:
         base_line = baseline.Baseline(master.metadata, slave.metadata)
 
     pair.perpendicular_baseline = base_line.perpendicular_baseline(master.metadata.number_columns / 2, master.metadata.number_rows / 2)
     pair.temporal_baseline = base_line.temporal_baseline
 
-    shift = coregistration.orbit_shift(master.metadata.burst, slave.metadata.burst)
+    shift = coregistration.orbit_shift(master.metadata, slave.metadata)
     pair.shift_x = shift[0]
     pair.shift_y = shift[1]
 

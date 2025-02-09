@@ -12,4 +12,4 @@ if __name__ == "__main__":
 
     print(f'Baseline calculation: {pair.perpendicular_baseline} m Perpendicular Baseline and a Temporal Baseline of {pair.temporal_baseline} days')
 
-    pair.save(insar_pair.createFilename(pair, filepath_out), savetiff=True)
+    pair.save(directory=filepath_out)

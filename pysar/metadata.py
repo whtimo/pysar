@@ -41,18 +41,19 @@ class MetaData:
     def subset(self, window: Window):
         newmeta = MetaData()
 
-        newmeta.burst = self._burst.subset(window)
+        newmeta._burst = self._burst.subset(window)
+        newmeta._orbit = newmeta._burst.orbit
         newmeta.acquisition_date = self.acquisition_date
         newmeta.number_rows = window.height
         newmeta.number_columns = window.width
         newmeta.wavelength = self.wavelength
         newmeta.sensor = self.sensor
-        newmeta.footprint = newmeta.burst.footprint
+        newmeta.footprint = newmeta._burst.footprint
         newmeta.polarization = self.polarization
         newmeta.orbit_direction = self.orbit_direction
         columns = np.arange(window.col_off, window.col_off + window.width, 100)
         angles = [self._incidence_interpolator(col) for col in columns]
-        newmeta.incidence_interpolator = interp1d(
+        newmeta._incidence_interpolator = interp1d(
                 columns, angles, kind="cubic", fill_value="extrapolate"
             )
 
@@ -61,13 +62,14 @@ class MetaData:
     def multilook(self, multilook_range = 1, multilook_azimuth = 1):
         newmeta = MetaData()
 
-        newmeta.burst = self._burst.multilook(multilook_range, multilook_azimuth)
+        newmeta._burst = self._burst.multilook(multilook_range, multilook_azimuth)
+        newmeta._orbit = newmeta._burst.orbit
         newmeta.acquisition_date = self.acquisition_date
         newmeta.number_rows = int(self.number_rows / multilook_azimuth)
         newmeta.number_columns = int(self.number_columns / multilook_range)
         newmeta.wavelength = self.wavelength
         newmeta.sensor = self.sensor
-        newmeta.footprint = newmeta.burst.footprint
+        newmeta.footprint = newmeta._burst.footprint
         newmeta.polarization = self.polarization
         newmeta.orbit_direction = self.orbit_direction
         columns = np.arange(0, self.number_columns, 100)

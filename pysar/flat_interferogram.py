@@ -17,6 +17,7 @@ class FlatInterferogram:
         self.temporal_baseline = None
         self.interferogram_tiff_path = None
         self.data = None
+        self._interfero_data = None
 
         if filepath:
             root = ET.parse(filepath).getroot()
@@ -56,7 +57,7 @@ class FlatInterferogram:
                 insar_tiff_fn = pathlib.Path(
                     directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
 
-        if len(xml_filename) > 0:
+        if len(str(xml_filename)) > 0:
             root = ET.Element("PySar")
             pair_elem = ET.SubElement(root, "Interferogram")
             pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
@@ -69,8 +70,8 @@ class FlatInterferogram:
             if overwrite or not insar_tiff_fn.exists():
                 metadata = {
                     "driver": "GTiff",  # GeoTIFF format
-                    "height": self.data.shape[0],  # Number of rows
-                    "width": self.data.shape[1],  # Number of columns
+                    "height": self.getHeight(),  # Number of rows
+                    "width": self.getWidth(),  # Number of columns
                     "count": 1,  # Single band (complex data)
                     "dtype": np.complex64,  # Complex float32 data type
                     "transform": rasterio.Affine.identity(),  # Identity transform (no georeferencing)
@@ -89,23 +90,35 @@ class FlatInterferogram:
                 f.write(pretty_xml)
 
     def __openfile(self):
-        if self.data is None:
+        if self.data is None and self.interferogram_tiff_path is not None:
             self.data = rasterio.open(self.interferogram_tiff_path)
 
     def getWidth(self) -> int:
         self.__openfile()
-        return self.data.width
+        if self.data is None:
+            return self._interfero_data.shape[1]
+        else:
+            return self.data.width
 
     def getHeight(self) -> int:
         self.__openfile()
-        return self.data.height
+        if self.data is None:
+            return self._interfero_data.shape[0]
+        else:
+            return self.data.height
 
     def read(self, window: Window = None) -> np.ndarray:
         self.__openfile()
-        if window is None:
-            return self.data.read(1)
+        if self.data is None:
+            if window is None:
+                return self._interfero_data
+            else:
+                return self._interfero_data[window.row_off:window.row_off+window.height,window.col_off:window.col_off+window.width]
         else:
-            return self.data.read(1, window=window)
+            if window is None:
+                return self.data.read(1)
+            else:
+                return self.data.read(1, window=window)
 
     def subset(self, window: Window):
         data = self.read(window)
@@ -142,7 +155,7 @@ def createFlatInterferogram(master: metadata.MetaData, slave: metadata.MetaData,
                                                                         master.number_rows / 2)
     interfero.temporal_baseline = base_line.temporal_baseline
 
-    interfero.data = flat_data
+    interfero._interfero_data = flat_data
 
     return interfero
 
@@ -169,12 +182,12 @@ def get_image_coord_satposmaster_satpos_slave(geocentric, master_meta: metadata.
                                               slave_meta: metadata.MetaData):
     result = []
     for geoc_point in geocentric:
-        master_az_time = master_meta.burst.azimuth_time_from_geocentric(geoc_point)
-        satpos_m = master_meta.burst.orbit.interpolate_position(master_az_time)
-        slave_az_time = slave_meta.burst.azimuth_time_from_geocentric(geoc_point)
-        satpos_s = slave_meta.burst.orbit.interpolate_position(slave_az_time)
+        master_az_time = master_meta._burst.azimuth_time_from_geocentric(geoc_point)
+        satpos_m = master_meta._burst.orbit.interpolate_position(master_az_time)
+        slave_az_time = slave_meta._burst.azimuth_time_from_geocentric(geoc_point)
+        satpos_s = slave_meta._burst.orbit.interpolate_position(slave_az_time)
 
-        m_x, m_y = master_meta.burst.pixel_from_geocentric(geoc_point)
+        m_x, m_y = master_meta._burst.pixel_from_geocentric(geoc_point)
 
         result.append((m_x, m_y, geoc_point, satpos_m, satpos_s))
 

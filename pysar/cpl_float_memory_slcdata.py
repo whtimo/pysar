@@ -1,5 +1,5 @@
 import numpy as np
-from pysar import islcdata, cpl_float_memory_slcdata
+from pysar import islcdata
 from rasterio.windows import Window
 
 #Single Swath and Single Burst Slc Data
@@ -22,7 +22,7 @@ class CplFloatMemorySlcData(islcdata.ISlcData):
 
     def subset(self, window: Window):
         data = self.read(window)
-        mem = cpl_float_memory_slcdata.CplFloatMemorySlcData(data)
+        mem = CplFloatMemorySlcData(data)
         return mem
 
     def multilook(self, multilook_range=1, multilook_azimuth=1):
