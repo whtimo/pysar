@@ -1,4 +1,4 @@
-from pysar import metadata, footprint, resampled_pair, coordinates, cpl_float_memory_slcdata,baseline
+from pysar import metadata, footprint, resampled_pair, coordinates, cpl_float_memory_slcdata, baseline
 import numpy as np
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
@@ -8,8 +8,9 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pathlib
 
+
 class FlatInterferogram:
-    def __init__(self, filepath:str = None):
+    def __init__(self, filepath: str = None):
         self.master_metadata = None
         self.slave_metadata = None
         self.perpendicular_baseline = None
@@ -21,60 +22,75 @@ class FlatInterferogram:
             root = ET.parse(filepath).getroot()
             pair_elem = root.find("Interferogram")
             if pair_elem:
-                self.perpendicular_baseline =  float(pair_elem.attrib['perpendicular_baseline'])
+                self.perpendicular_baseline = float(pair_elem.attrib['perpendicular_baseline'])
                 self.temporal_baseline = int(pair_elem.attrib['temporal_baseline'])
                 self.master_metadata = metadata.fromXml(pair_elem.find("Master/MetaData"))
                 self.slave_metadata = metadata.fromXml(pair_elem.find("Slave/MetaData"))
-
                 self.interferogram_tiff_path = pathlib.Path(filepath).parent / pair_elem.find("FilePath").text
 
-    def __getTiffName(self, path, overwrite: bool = True):
-        counter = 0
-        tiff_name = f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.flat.interfero.tiff'
-        while (pathlib.Path(path) / tiff_name).exists() and not overwrite:
-            counter += 1
-            tiff_name = f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.flat.interfero.tiff'
+    def save(self, directory: str = None, filename: str = None, tiff_filename: str = None, overwrite: bool = True,
+             filtered: bool = False):
 
-        return tiff_name
+        xml_filename = ''
+        insar_tiff_fn = ''
 
-    def save(self, filepath:str):
-        root = ET.Element("PySar")
-        pair_elem = ET.SubElement(root, "Interferogram")
-        pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
-        pair_elem.attrib["temporal_baseline"] = str(self.temporal_baseline)
-        master_elem = ET.SubElement(pair_elem, "Master")
-        self.master_metadata.toXml(master_elem)
-        slave_elem = ET.SubElement(pair_elem, "Slave")
-        self.slave_metadata.toXml(slave_elem)
-        tiff_name = self.__getTiffName(filepath, True)
-        self.__openfile()
+        filter = ''
+        if filtered:
+            filter = 'filtered.'
 
-        metadata = {
-            "driver": "GTiff",  # GeoTIFF format
-            "height": self.data.shape[0],  # Number of rows
-            "width": self.data.shape[1],  # Number of columns
-            "count": 1,  # Single band (complex data)
-            "dtype": np.complex64,  # Complex float32 data type
-            "transform": rasterio.Affine.identity(),  # Identity transform (no georeferencing)
-        }
+        if directory is None:
+            if filename is not None and tiff_filename is not None:
+                xml_filename = pathlib.Path(filename)
+                insar_tiff_fn = pathlib.Path(tiff_filename)
+        else:
+            counter = 0
+            xml_filename = pathlib.Path(
+                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.{filter}flat.interfero.xml'
+            insar_tiff_fn = pathlib.Path(
+                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
 
-        with rasterio.open(pathlib.Path(filepath).parent / tiff_name, "w", **metadata) as dst:
-            dst.write(self.data, 1)  # Write the complex array to the first band
+            while not overwrite and xml_filename.exists():
+                counter += 1
+                xml_filename = pathlib.Path(
+                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.{filter}flat.interfero.xml'
+                insar_tiff_fn = pathlib.Path(
+                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
 
-        file_path_elem = ET.SubElement(pair_elem, "FilePath")
-        file_path_elem.text = str(tiff_name)
-        xml_str = ET.tostring(root, encoding="utf-8")
-        pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+        if len(xml_filename) > 0:
+            root = ET.Element("PySar")
+            pair_elem = ET.SubElement(root, "Interferogram")
+            pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
+            pair_elem.attrib["temporal_baseline"] = str(self.temporal_baseline)
+            master_elem = ET.SubElement(pair_elem, "Master")
+            self.master_metadata.toXml(master_elem)
+            slave_elem = ET.SubElement(pair_elem, "Slave")
+            self.slave_metadata.toXml(slave_elem)
 
-        # Write the pretty-printed XML to a file
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(pretty_xml)
+            if overwrite or not insar_tiff_fn.exists():
+                metadata = {
+                    "driver": "GTiff",  # GeoTIFF format
+                    "height": self.data.shape[0],  # Number of rows
+                    "width": self.data.shape[1],  # Number of columns
+                    "count": 1,  # Single band (complex data)
+                    "dtype": np.complex64,  # Complex float32 data type
+                    "transform": rasterio.Affine.identity(),  # Identity transform (no georeferencing)
+                }
 
+                with rasterio.open(insar_tiff_fn, "w", **metadata) as dst:
+                    dst.write(self.read(), 1)  # Write the complex array to the first band
+
+            file_path_elem = ET.SubElement(pair_elem, "FilePath")
+            file_path_elem.text = str(insar_tiff_fn.relative_to(xml_filename.parent))
+            xml_str = ET.tostring(root, encoding="utf-8")
+            pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+
+            # Write the pretty-printed XML to a file
+            with open(xml_filename, "w", encoding="utf-8") as f:
+                f.write(pretty_xml)
 
     def __openfile(self):
         if self.data is None:
-            if self.interferogram_tiff_path is not None and len(self.interferogram_tiff_path) > 0:
-                self.data = rasterio.open(self.interferogram_tiff_path)
+            self.data = rasterio.open(self.interferogram_tiff_path)
 
     def getWidth(self) -> int:
         self.__openfile()
@@ -113,14 +129,17 @@ class FlatInterferogram:
         mem = cpl_float_memory_slcdata.CplFloatMemorySlcData(reduced)
         return mem
 
-def createFlatInterferogram(master: metadata.MetaData, slave: metadata.MetaData, flat_data: np.ndarray, base_line: baseline.Baseline = None):
+
+def createFlatInterferogram(master: metadata.MetaData, slave: metadata.MetaData, flat_data: np.ndarray,
+                            base_line: baseline.Baseline = None):
     interfero = FlatInterferogram()
     interfero.master_metadata = master
     interfero.slave_metadata = slave
     if base_line is None:
         base_line = baseline.Baseline(master, slave)
 
-    interfero.perpendicular_baseline = base_line.perpendicular_baseline(master.number_columns / 2, master.number_rows / 2)
+    interfero.perpendicular_baseline = base_line.perpendicular_baseline(master.number_columns / 2,
+                                                                        master.number_rows / 2)
     interfero.temporal_baseline = base_line.temporal_baseline
 
     interfero.data = flat_data
@@ -128,14 +147,15 @@ def createFlatInterferogram(master: metadata.MetaData, slave: metadata.MetaData,
     return interfero
 
 
-def get_geo_points(footprint: footprint.Footprint, pnts_lon:int = 30, pnt_lat:int = 40):
+def get_geo_points(footprint: footprint.Footprint, pnts_lon: int = 30, pnt_lat: int = 40):
     x = np.linspace(footprint.left(), footprint.right(), pnts_lon)
     y = np.linspace(footprint.top(), footprint.bottom(), pnt_lat)
     xx, yy = np.meshgrid(x, y)
 
     return np.column_stack((xx.ravel(), yy.ravel()))
 
-def get_geocentric_points(footprint: footprint.Footprint, pnts_lon:int = 30, pnt_lat:int = 40):
+
+def get_geocentric_points(footprint: footprint.Footprint, pnts_lon: int = 30, pnt_lat: int = 40):
     geo_points = get_geo_points(footprint, pnts_lon, pnt_lat)
     geoc = []
     for geo_point in geo_points:
@@ -144,8 +164,9 @@ def get_geocentric_points(footprint: footprint.Footprint, pnts_lon:int = 30, pnt
 
     return np.array(geoc)
 
-def get_image_coord_satposmaster_satpos_slave(geocentric, master_meta: metadata.MetaData, slave_meta: metadata.MetaData):
 
+def get_image_coord_satposmaster_satpos_slave(geocentric, master_meta: metadata.MetaData,
+                                              slave_meta: metadata.MetaData):
     result = []
     for geoc_point in geocentric:
         master_az_time = master_meta.burst.azimuth_time_from_geocentric(geoc_point)
@@ -158,6 +179,7 @@ def get_image_coord_satposmaster_satpos_slave(geocentric, master_meta: metadata.
         result.append((m_x, m_y, geoc_point, satpos_m, satpos_s))
 
     return result
+
 
 def get_image_coord_phase(geocentric, master_meta, slave_meta):
     pos = get_image_coord_satposmaster_satpos_slave(geocentric, master_meta, slave_meta)
@@ -204,14 +226,15 @@ def create_flattened_interferogram(pair: resampled_pair.ResampledPair, phase_mod
 
     for y in range(master.shape[0]):
         print(f'Flat Interferogram: {y} / {master.shape[0]}')
-        interfero = master[y,:] * np.conjugate(slave[y,:])
+        interfero = master[y, :] * np.conjugate(slave[y, :])
         coordinates = np.column_stack((xs, np.full_like(xs, y)))
         point_poly = poly.transform(coordinates)
         pred_phase = phase_model.predict(point_poly)
         flat_phases = np.exp(1j * pred_phase)
-        flat_interfero[y,:] = interfero * np.conjugate(flat_phases)
+        flat_interfero[y, :] = interfero * np.conjugate(flat_phases)
 
     return flat_interfero
+
 
 def fromBzarXml(xml_path: str) -> FlatInterferogram:
     interfero = FlatInterferogram()
@@ -223,9 +246,5 @@ def fromBzarXml(xml_path: str) -> FlatInterferogram:
         interfero.temporal_baseline = int(pair_elem.attrib['temp_baseline'])
         interfero.master_metadata = metadata.fromBzarXml(pair_elem.find("MasterSlcImage/Band"))
         interfero.slave_metadata = metadata.fromBzarXml(pair_elem.find("SlaveSlcImage/Band"))
-        interfero.interferogram_tiff_path = pathlib.Path(xml_path).parent /  pair_elem.find("FilePath").text
+        interfero.interferogram_tiff_path = pathlib.Path(xml_path).parent / pair_elem.find("FilePath").text
     return interfero
-
-def createFilename(master: metadata.MetaData, slave: metadata.MetaData, directory:str) -> pathlib.Path:
-    xml_path = pathlib.Path(directory) / f'{master.sensor}_{master.acquisition_date.isoformat()}__{slave.sensor}_{slave.acquisition_date.isoformat()}.pysar.flat.interfero.xml'
-    return xml_path

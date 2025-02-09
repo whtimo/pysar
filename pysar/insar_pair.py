@@ -1,8 +1,6 @@
-import pysar
 from pysar import slc, baseline, metadata, coregistration, cpl_float_slcdata
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-from pysar.burst import Burst
 import pathlib
 
 class InSarPair:
@@ -39,41 +37,80 @@ class InSarPair:
 
         return tiff_name
 
-    def save(self, filepath:str, savetiff:bool = True, overwrite:bool = True):
-        root = ET.Element("PySar")
-        pair_elem = ET.SubElement(root, "Pair")
-        pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
-        pair_elem.attrib["temporal_baseline"] = str(self.temporal_baseline)
-        pair_elem.attrib["shift_x"] = str(self.shift_x)
-        pair_elem.attrib["shift_y"] = str(self.shift_y)
-        master_elem = ET.SubElement(pair_elem, "Master")
-        self.master.metadata.toXml(master_elem)
-        if savetiff:
-            tiff_name = self.__getTiffName(self.master.metadata, filepath, overwrite)
-            self.master.slcdata.toXml(master_elem, tiff_name, filepath, self.master.slcdata.read())
+    def save(self,  directory: str = None, filename: str = None, master_tiff_filename: str = None, slave_tiff_filename: str = None, overwrite: bool = False):
+        """
+        Saves the InSAR pair data
+
+        :param directory: Save into this directory with automatic created filenames (defaut)
+        :param filename: Filename for the xml file (requires the directory to not be set)
+        :param master_tiff_filename: Filename for the master tiff file (requires the directory to not be set). If directory is not set and the tiff file name is not set, the tiff files will not be saved. Also, if saveiff is False, they will not be saved.
+        :param slave_tiff_filename: Filename for the slave tiff file (requires the directory to not be set) If directory is not set and the tiff file name is not set, the tiff files will not be saved. Also, if saveiff is False, they will not be saved.
+        """
+
+        xml_filename = ''
+        master_tiff_fn = ''
+        slave_tiff_fn = ''
+
+        if directory is None:
+            if filename is not None and master_tiff_filename is not None and slave_tiff_filename is not None:
+                xml_filename = filename
+                master_tiff_fn = master_tiff_filename
+                slave_tiff_fn = slave_tiff_filename
         else:
-            self.master.slcdata.toXml(master_elem, self.master.slcdata.filename)
+            counter = 0
+            xml_filename = pathlib.Path(
+                directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}__{self.slave.metadata.sensor}_{self.slave.metadata.acquisition_date.isoformat()}.pysar.pair.xml'
 
-        slave_elem = ET.SubElement(pair_elem, "Slave")
-        self.slave.metadata.toXml(slave_elem)
-        if savetiff:
-            tiff_name = self.__getTiffName(self.slave.metadata, filepath, overwrite)
-            self.slave.slcdata.toXml(slave_elem, tiff_name, filepath, self.slave.slcdata.read())
-        else:
-            self.slave.slcdata.toXml(slave_elem, self.slave.slcdata.filename)
+            while not overwrite and xml_filename.exists():
+                counter += 1
+                xml_filename = pathlib.Path(
+                    directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}__{self.slave.metadata.sensor}_{self.slave.metadata.acquisition_date.isoformat()}.pysar.pair.xml'
 
-        xml_str = ET.tostring(root, encoding="utf-8")
-        pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+            if master_tiff_fn is not None:
+                master_tiff_fn = master_tiff_filename
+            else:
+                master_tiff_fn = pathlib.Path(
+                    directory) / f'{self.master.metadata.sensor}_{counter}_{self.master.metadata.acquisition_date.isoformat()}.slc.tiff'
 
-        # Write the pretty-printed XML to a file
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(pretty_xml)
+            if slave_tiff_fn is not None:
+                slave_tiff_fn = slave_tiff_filename
+            else:
+                slave_tiff_fn = pathlib.Path(
+                    directory) / f'{self.slave.metadata.sensor}_{counter}_{self.slave.metadata.acquisition_date.isoformat()}.slc.tiff'
 
-def createInSarPair(master: pysar.slc, slave: pysar.slc, bese_line: baseline.Baseline = None):
+
+        if len(xml_filename) > 0:
+            root = ET.Element("PySar")
+            pair_elem = ET.SubElement(root, "Pair")
+            pair_elem.attrib["perpendicular_baseline"] = str(self.perpendicular_baseline)
+            pair_elem.attrib["temporal_baseline"] = str(self.temporal_baseline)
+            pair_elem.attrib["shift_x"] = str(self.shift_x)
+            pair_elem.attrib["shift_y"] = str(self.shift_y)
+            master_elem = ET.SubElement(pair_elem, "Master")
+            self.master.metadata.toXml(master_elem)
+            if not pathlib.Path(master_tiff_fn).exists():
+                self.master.slcdata.saveTiff(master_tiff_fn, self.master.slcdata.read())
+            self.master.slcdata.toXml(master_elem, pathlib.Path(master_tiff_fn).relative_to(pathlib.Path(xml_filename).parent) )
+
+            slave_elem = ET.SubElement(pair_elem, "Slave")
+            self.slave.metadata.toXml(slave_elem)
+            if not pathlib.Path(slave_tiff_fn).exists():
+                self.slave.slcdata.saveTiff(slave_tiff_fn, self.slave.slcdata.read())
+            self.slave.slcdata.toXml(slave_elem,
+                                          pathlib.Path(slave_tiff_fn).relative_to(pathlib.Path(xml_filename).parent))
+
+            xml_str = ET.tostring(root, encoding="utf-8")
+            pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+
+            # Write the pretty-printed XML to a file
+            with open(xml_filename, "w", encoding="utf-8") as f:
+                f.write(pretty_xml)
+
+def createInSarPair(master: slc.Slc, slave: slc.Slc, base_line: baseline.Baseline = None):
     pair = InSarPair()
     pair.master = master
     pair.slave = slave
-    if bese_line is None:
+    if base_line is None:
         base_line = baseline.Baseline(master.metadata, slave.metadata)
 
     pair.perpendicular_baseline = base_line.perpendicular_baseline(master.metadata.number_columns / 2, master.metadata.number_rows / 2)
@@ -106,6 +143,3 @@ def fromBzarXml(xml_path: str) -> InSarPair:
 
     return pair
 
-def createFilename(pair: InSarPair, directory:str) -> pathlib.Path:
-
-    return pathlib.Path(directory) / f'{pair.master.metadata.sensor}_{pair.master.metadata.acquisition_date.isoformat()}__{pair.slave.metadata.sensor}_{pair.slave.metadata.acquisition_date.isoformat()}.pysar.pair.xml'

@@ -1,12 +1,10 @@
 import numpy as np
 from scipy import fftpack
-from pysar import burst, coordinates, footprint, metadata
+from pysar import coordinates, footprint, metadata
 import random
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import RANSACRegressor, LinearRegression
 from sklearn.pipeline import make_pipeline
-from sklearn.metrics import mean_absolute_error
-from sklearn.multioutput import MultiOutputRegressor
 import pandas as pd
 
 def get_random_points(count: int, footprint: footprint.Footprint, height: float = 0):
@@ -19,12 +17,12 @@ def get_random_points(count: int, footprint: footprint.Footprint, height: float 
 
     return result
 
-def orbit_shift(master_burst: burst.Burst, slave_burst: burst.Burst, height: float = 0.0):
-    cent_lon = (master_burst.footprint.left() + master_burst.footprint.right()) / 2
-    cent_lat = (master_burst.footprint.top() + master_burst.footprint.bottom()) / 2
+def orbit_shift(master: metadata.MetaData, slave: metadata.MetaData, height: float = 0.0):
+    cent_lon = (master.footprint.left() + master.footprint.right()) / 2
+    cent_lat = (master.footprint.top() + master.footprint.bottom()) / 2
     geocentric = coordinates.geodetic_to_geocentric(cent_lat, cent_lon, height)
-    m_x, m_y = master_burst.pixel_from_geocentric(geocentric)
-    s_x, s_y = slave_burst.pixel_from_geocentric(geocentric)
+    m_x, m_y = master.pixel_from_geocentric(geocentric)
+    s_x, s_y = slave.pixel_from_geocentric(geocentric)
 
     return s_x - m_x, s_y - m_y
 
@@ -72,12 +70,12 @@ def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaDat
 
     for lat, lon, h in pnts:
         geocentric = coordinates.geodetic_to_geocentric(lat, lon, h)
-        m_x, m_y = master_meta.burst.pixel_from_geocentric(geocentric)
+        m_x, m_y = master_meta.pixel_from_geocentric(geocentric)
         m_x, m_y = int(m_x), int(m_y)
-        if master_meta.burst.is_valid(m_x, m_y, window_size_x + search_size_x, window_size_y + search_size_y):
-            s_x, s_y = slave_meta.burst.pixel_from_geocentric(geocentric)
+        if master_meta.is_valid(m_x, m_y, window_size_x + search_size_x, window_size_y + search_size_y):
+            s_x, s_y = slave_meta.pixel_from_geocentric(geocentric)
             s_x, s_y = int(s_x), int(s_y)
-            if slave_meta.burst.is_valid(s_x + coarse_shift_x, s_y + coarse_shift_y, window_size_x, window_size_y):
+            if slave_meta.is_valid(s_x + coarse_shift_x, s_y + coarse_shift_y, window_size_x, window_size_y):
                 mas_subset = master_data[m_y-win_radius_y -search_size_y:m_y+win_radius_y+search_size_y,m_x-win_radius_x-search_size_x:m_x+win_radius_x+search_size_x]
                 sl_subset = slave_data[s_y+coarse_shift_y+-win_radius_y:s_y+coarse_shift_y+win_radius_y,s_x+coarse_shift_x-win_radius_x:s_x+coarse_shift_x+win_radius_x]
                 shift, max_corr = subpixel_shift(abs(mas_subset), abs(sl_subset), upsample_factor)

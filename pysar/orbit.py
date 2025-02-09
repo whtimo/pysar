@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import numpy as np
-import bisect
 from scipy.interpolate import CubicHermiteSpline
 
 class Orbit:

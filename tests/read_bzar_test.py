@@ -18,9 +18,9 @@ class ImportBzarTest(unittest.TestCase):
         self.assertAlmostEqual(-2284344.436283692, geoc[0], places=5)
         self.assertAlmostEqual(5005522.103689523, geoc[1], places=5)
         self.assertAlmostEqual(3215195.349620832, geoc[2], places=5)
-        self.assertAlmostEqual(2.3584905660377357e-05, slc_data.metadata.burst.row_spacing, places=10)
+        self.assertAlmostEqual(2.3584905660377357e-05, slc_data.metadata._burst.row_spacing, places=10)
 
-        img = slc_data.metadata.burst.pixel_from_geocentric(geoc)
+        img = slc_data.metadata.pixel_from_geocentric(geoc)
         self.assertAlmostEqual(3358, img[0], delta=0.01)
         self.assertAlmostEqual(8696, img[1], delta=0.4)
 

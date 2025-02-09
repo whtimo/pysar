@@ -1,5 +1,5 @@
 import numpy as np
-from pysar import islcdata
+from pysar import islcdata, cpl_float_memory_slcdata
 from rasterio.windows import Window
 
 #Single Swath and Single Burst Slc Data

@@ -17,7 +17,7 @@ def get_random_points(count: int, footprint: footprint.Footprint, min_height: fl
 
     return result
 
-def get_satellite_position(geocentric: np.array, burst: burst.Burst) -> np.array:
+def _get_satellite_position(geocentric: np.array, burst: burst.Burst) -> np.array:
 
     az_time = burst.azimuth_time_from_geocentric(geocentric)
     satpos = burst.orbit.interpolate_position(az_time)
@@ -87,13 +87,13 @@ def calculate_incidence_angle(ground_pos, satellite_pos):
 
     return incidence_angle
 
-def get_perpendicular_baseline_estimator(primary_burst: burst.Burst, secondary_burst: burst.Burst, points=1000, min_height=0.0, max_height=2000.0, degree=3):
+def get_perpendicular_baseline_estimator(master: metadata.MetaData, slave: metadata.MetaData, points=1000, min_height=0.0, max_height=2000.0, degree=3):
     """
         Train a polynomial regression model to estimate the perpendicular baseline from (x, y, height).
 
         Parameters:
-        primary_burst (burst.Burst): Primary burst (master).
-        secondary_burst (burst.Burst): Secondary burst (slave).
+        master (Metadata): Primary Metadata (master).
+        slave (burst.Metadata): Secondary Metadata (slave).
         points (int): Number of sample points for training.
         min_height (float): Minimum height for sampling.
         max_height (float): Maximum height for sampling.
@@ -104,17 +104,17 @@ def get_perpendicular_baseline_estimator(primary_burst: burst.Burst, secondary_b
 
         Usage: predicted_baseline = model.predict([[x_new, y_new, height_new]])
     """
-    pnts = get_random_points(points*2, primary_burst.footprint, min_height, max_height)
+    pnts = get_random_points(points*2, master.footprint, min_height, max_height)
 
     # Collect features (x, y, height) and targets (perpendicular baseline)
     X = []
     y = []
     for lat, lon, h in pnts:
         geocentric = coordinates.geodetic_to_geocentric(lat, lon, h)
-        x_pixel, y_pixel = primary_burst.pixel_from_geocentric(geocentric)
-        if primary_burst.is_valid(x_pixel, y_pixel):
-            primary_pos = get_satellite_position(geocentric, primary_burst)
-            seondary_pos = get_satellite_position(geocentric, secondary_burst)
+        x_pixel, y_pixel = master.pixel_from_geocentric(geocentric)
+        if master.is_valid(x_pixel, y_pixel):
+            primary_pos = _get_satellite_position(geocentric, master._burst)
+            seondary_pos = _get_satellite_position(geocentric, slave._burst)
             _, _, perp_baseline = calculate_baselines(geocentric, primary_pos, seondary_pos)
 
             X.append([x_pixel, y_pixel, h])
@@ -135,18 +135,18 @@ def get_perpendicular_baseline_estimator(primary_burst: burst.Burst, secondary_b
     return model
 
 
-def get_inc_angle_estimator(burst: burst.Burst, points=1000, min_height=0.0, max_height=2000.0, degree=2):
+def get_inc_angle_estimator(meta: metadata.MetaData, points=1000, min_height=0.0, max_height=2000.0, degree=2):
 
-    pnts = get_random_points(points*2, burst.footprint, min_height, max_height)
+    pnts = get_random_points(points*2, meta.footprint, min_height, max_height)
 
     # Collect features (x, y, height) and targets (perpendicular baseline)
     X = []
     y = []
     for lat, lon, h in pnts:
         geocentric = coordinates.geodetic_to_geocentric(lat, lon, h)
-        x_pixel, y_pixel = burst.pixel_from_geocentric(geocentric)
-        if burst.is_valid(x_pixel, y_pixel):
-            primary_pos = get_satellite_position(geocentric, burst)
+        x_pixel, y_pixel = meta.pixel_from_geocentric(geocentric)
+        if meta.is_valid(x_pixel, y_pixel):
+            primary_pos = _get_satellite_position(geocentric, meta._burst)
             inc_angle = calculate_incidence_angle(geocentric, primary_pos)
 
             X.append([x_pixel, y_pixel, h])
@@ -167,9 +167,9 @@ def get_inc_angle_estimator(burst: burst.Burst, points=1000, min_height=0.0, max
     return model
 
 class Baseline:
-    def __init__(self, primary_meta: metadata.MetaData, secondary_meta: metadata.MetaData, points=1000, min_height=0.0, max_height=2000.0, degree=3):
-        self.__model = get_perpendicular_baseline_estimator(primary_meta.burst, secondary_meta.burst, points, min_height, max_height, degree)
-        self.temporal_baseline = (secondary_meta.acquisition_date - primary_meta.acquisition_date).days
+    def __init__(self, master_meta: metadata.MetaData, slave_meta: metadata.MetaData, points=1000, min_height=0.0, max_height=2000.0, degree=3):
+        self.__model = get_perpendicular_baseline_estimator(master_meta, slave_meta, points, min_height, max_height, degree)
+        self.temporal_baseline = (slave_meta.acquisition_date - master_meta.acquisition_date).days
 
     def perpendicular_baseline(self, x: float, y: float, height: float = 0.0) -> float:
         return self.__model.predict([[x, y, height]])[0]

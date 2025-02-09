@@ -4,7 +4,7 @@ from pysar import orbit, footprint
 import numpy as np
 from scipy.optimize import minimize_scalar
 from scipy.constants import c
-from rasterio.windows import Window, bounds
+from rasterio.windows import Window
 
 class Burst:
     def __init__(self):
@@ -234,7 +234,7 @@ def fromXml(root : ET.Element, orbit) -> Burst:
     return burst
 
 
-def fromBzarXml(root: ET.Element, orbit, footprint = None) -> Burst:
+def fromBzarXml(root: ET.Element, orbit, type: str, footprint = None) -> Burst:
     burst = Burst()
     burst.orbit = orbit
 
@@ -252,6 +252,8 @@ def fromBzarXml(root: ET.Element, orbit, footprint = None) -> Burst:
     column_spacing_elem = root.find("SlcImageColumnSpacing")
     if column_spacing_elem is not None and column_spacing_elem.text:
         burst.column_spacing = float(column_spacing_elem.text)
+        if type == 'tsx':
+            burst.column_spacing /= 2.0
 
     # Load row_spacing
     row_spacing_elem = root.find("SlcImageRowSpacing")

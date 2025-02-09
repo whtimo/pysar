@@ -1,5 +1,3 @@
-from numpy.ma.extras import flatten_inplace
-
 from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, flat_interferogram
 import pandas as pd
 import rasterio

@@ -1,7 +1,5 @@
 from pysar import metadata, footprint, resampled_pair, coordinates, cpl_float_memory_slcdata,baseline
 import numpy as np
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
 from rasterio.windows import Window
 import rasterio
 import xml.etree.ElementTree as ET

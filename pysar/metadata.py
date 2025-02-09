@@ -9,9 +9,13 @@ from rasterio.windows import Window, bounds
 
 # Single Burst MetaData
 class MetaData:
+    """
+    Single-Burst SAR Metadata.
+    """
+
     def __init__(self):
-        self.burst = None
-        self.orbit = None
+        self._burst = None
+        self._orbit = None
         self.acquisition_date = None
         self.number_rows = None
         self.number_columns = None
@@ -20,18 +24,24 @@ class MetaData:
         self.footprint = None
         self.polarization = None
         self.orbit_direction = None
-        self.incidence_interpolator = None
+        self._incidence_interpolator = None
 
         # These are not necessary
         self._radar_frequency = None
 
+    def pixel_from_geocentric(self, geocentric: np.array):
+        return self._burst.pixel_from_geocentric(geocentric)
+
+    def is_valid(self, x, y, winx=0, winy=0):
+        return winx <= x < self.number_columns - winx and winy <= y < self.number_rows - winy
+
     def get_incidence_angle(self, col):
-        return self.incidence_interpolator(col)
+        return self._incidence_interpolator(col)
 
     def subset(self, window: Window):
         newmeta = MetaData()
 
-        newmeta.burst = self.burst.subset(window)
+        newmeta.burst = self._burst.subset(window)
         newmeta.acquisition_date = self.acquisition_date
         newmeta.number_rows = window.height
         newmeta.number_columns = window.width
@@ -41,7 +51,7 @@ class MetaData:
         newmeta.polarization = self.polarization
         newmeta.orbit_direction = self.orbit_direction
         columns = np.arange(window.col_off, window.col_off + window.width, 100)
-        angles = [self.incidence_interpolator(col) for col in columns]
+        angles = [self._incidence_interpolator(col) for col in columns]
         newmeta.incidence_interpolator = interp1d(
                 columns, angles, kind="cubic", fill_value="extrapolate"
             )
@@ -51,7 +61,7 @@ class MetaData:
     def multilook(self, multilook_range = 1, multilook_azimuth = 1):
         newmeta = MetaData()
 
-        newmeta.burst = self.burst.multilook(multilook_range, multilook_azimuth)
+        newmeta.burst = self._burst.multilook(multilook_range, multilook_azimuth)
         newmeta.acquisition_date = self.acquisition_date
         newmeta.number_rows = int(self.number_rows / multilook_azimuth)
         newmeta.number_columns = int(self.number_columns / multilook_range)
@@ -61,7 +71,7 @@ class MetaData:
         newmeta.polarization = self.polarization
         newmeta.orbit_direction = self.orbit_direction
         columns = np.arange(0, self.number_columns, 100)
-        angles = [self.incidence_interpolator(col) for col in columns]
+        angles = [self._incidence_interpolator(col) for col in columns]
         newcolumns = [col / multilook_range for col in columns]
         newmeta.incidence_interpolator = interp1d(
                 newcolumns, angles, kind="cubic", fill_value="extrapolate"
@@ -106,10 +116,10 @@ class MetaData:
             orbitdir_elem.text = self.orbit_direction
 
         # Save incidence_interpolator
-        if self.incidence_interpolator is not None and self.number_columns is not None:
+        if self._incidence_interpolator is not None and self.number_columns is not None:
             # Sample incidence angles every 500 pixels
             columns = np.arange(0, self.number_columns, 500)
-            incidence_angles = [self.incidence_interpolator(col) for col in columns]
+            incidence_angles = [self._incidence_interpolator(col) for col in columns]
 
             # Save columns and incidence_angles
             incidence_elem = ET.SubElement(meta_elem, "IncidenceInterpolator")
@@ -119,10 +129,10 @@ class MetaData:
                 sample_elem.set("angle", str(angle))
 
         orbit_elem = ET.SubElement(meta_elem, "Orbit")
-        self.orbit.toXml(orbit_elem)
+        self._orbit.toXml(orbit_elem)
 
         burst_elem = ET.SubElement(meta_elem, "Burst")
-        self.burst.toXml(burst_elem)
+        self._burst.toXml(burst_elem)
         footprint_elem = ET.SubElement(meta_elem, "Footprint")
         self.footprint.toXml(footprint_elem)
 
@@ -131,12 +141,12 @@ def fromTSX(xml_path: str, polarization: str) -> MetaData:
     meta.polarization = polarization
     tree = ET.parse(xml_path)
     root = tree.getroot()
-    meta.burst = burst.fromTSX(root)
-    meta.orbit = meta.burst.orbit
-    meta.acquisition_date = meta.burst.first_azimuth_datetime.date()
-    meta.number_rows = meta.burst.number_rows
-    meta.number_columns = meta.burst.number_columns
-    meta.footprint = meta.burst.footprint
+    meta._burst = burst.fromTSX(root)
+    meta._orbit = meta._burst.orbit
+    meta.acquisition_date = meta._burst.first_azimuth_datetime.date()
+    meta.number_rows = meta._burst.number_rows
+    meta.number_columns = meta._burst.number_columns
+    meta.footprint = meta._burst.footprint
 
     meta._radar_frequency = float(root.find('instrument/radarParameters/centerFrequency').text)
     meta.wavelength = c / meta._radar_frequency
@@ -174,7 +184,7 @@ def fromTSX(xml_path: str, polarization: str) -> MetaData:
         return interpolator
 
     georef_path = pathlib.Path(xml_path).parent / 'ANNOTATION' / 'GEOREF.xml'
-    meta.incidence_interpolator = create_incidence_angle_interpolator(georef_path)
+    meta._incidence_interpolator = create_incidence_angle_interpolator(georef_path)
     return meta
 
 
@@ -182,9 +192,9 @@ def fromTSX(xml_path: str, polarization: str) -> MetaData:
 def fromXml(root: ET.Element) -> MetaData:
     metadata = MetaData()
     orbit_elem = root.find("Orbit")
-    metadata.orbit = orbit.fromXml(orbit_elem)
+    metadata._orbit = orbit.fromXml(orbit_elem)
     burst_elem = root.find("Burst")
-    metadata.burst = burst.fromXml(burst_elem, metadata.orbit)
+    metadata._burst = burst.fromXml(burst_elem, metadata._orbit)
     footprint_elem = root.find("Footprint")
     metadata.footprint = footprint.fromXml(footprint_elem)
 
@@ -233,7 +243,7 @@ def fromXml(root: ET.Element) -> MetaData:
 
         # Reconstruct the interpolator
         if columns and angles:
-            metadata.incidence_interpolator = interp1d(
+            metadata._incidence_interpolator = interp1d(
                 columns, angles, kind="cubic", fill_value="extrapolate"
             )
 
@@ -243,15 +253,15 @@ def fromXml(root: ET.Element) -> MetaData:
 def fromBzarXml(root: ET.Element) -> MetaData:
     metadata = MetaData()
     meta_elem = root.find("MetaData")
-
+    type = meta_elem.attrib['burst_type']
     ref_time_elem = meta_elem.find("ReferenceTime")
     reference_time = datetime.datetime.fromisoformat(ref_time_elem.text)
 
     orbit_elem = meta_elem.find("Orbit")
-    metadata.orbit = orbit.fromXml(orbit_elem, reference_time)
+    metadata._orbit = orbit.fromXml(orbit_elem, reference_time)
 
     burst_elem = meta_elem.find("Bursts/Burst")
-    metadata.burst = burst.fromBzarXml(burst_elem, metadata.orbit)
+    metadata._burst = burst.fromBzarXml(burst_elem, metadata._orbit, type)
 
     inc_elem = meta_elem.find("GeoGrid")
 
@@ -284,11 +294,11 @@ def fromBzarXml(root: ET.Element) -> MetaData:
 
         return interpolator
 
-    metadata.incidence_interpolator = create_incidence_angle_interpolator(inc_elem)
+    metadata._incidence_interpolator = create_incidence_angle_interpolator(inc_elem)
 
     footprint_elem = meta_elem.find("Footprint")
     metadata.footprint = footprint.fromXml(footprint_elem)
-    metadata.burst.footprint = metadata.footprint
+    metadata._burst.footprint = metadata.footprint
 
     # Load acquisition_date
     acquisition_date_elem = meta_elem.find("AcquisitionDate")

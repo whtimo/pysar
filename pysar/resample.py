@@ -1,7 +1,5 @@
 import numpy as np
-import rasterio
 from scipy.signal.windows import kaiser
-from scipy.interpolate import interp2d
 
 def sinc_kernel(size, beta=5.0):
     """

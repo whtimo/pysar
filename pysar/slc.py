@@ -5,8 +5,11 @@ import numpy as np
 from pysar import metadata, cpl_float_slcdata
 from rasterio.windows import Window, bounds
 
-# Single Swath - Single Burst Slc
 class Slc:
+    """
+    Single-look complex SAR data. This class supports only one swath and one burst
+    """
+
     def __init__(self):
         self.metadata = None
         self.slcdata = None
@@ -22,6 +25,48 @@ class Slc:
         newslc.metadata = self.metadata.multilook(multilook_range, multilook_azimuth)
         newslc.slcdata = self.slcdata.multilook(multilook_range, multilook_azimuth)
         return newslc
+
+    def save(self,  directory: str = None, filename: str = None, tiff_filename: str = None, overwrite: bool = False):
+        """
+        Saves the SLC data
+
+        :param directory: Save into this directory with automatic created filenames (defaut)
+        :param filename: Filename for the xml file (requires the directory to not be set and the tiff_filename)
+        :param tiff_filename: Filename for the tiff file (requires the directory to not be set and the filename)
+        """
+
+        xml_filename = ''
+        tiff_fn = ''
+
+        if directory is None:
+            if not tiff_filename is None and not filename is None:
+                xml_filename = filename
+                tiff_fn = tiff_filename
+        else:
+            counter = 0
+            xml_filename = pathlib.Path(directory) / f'{self.metadata.sensor}_{counter}_{self.metadata.acquisition_date.isoformat()}.pysar.slc.xml'
+            tiff_fn = pathlib.Path(directory) / f'{self.metadata.sensor}_{counter}_{self.metadata.acquisition_date.isoformat()}.slc.tiff'
+            while not overwrite and (xml_filename.exists() or tiff_fn.exists()):
+                counter += 1
+                xml_filename = pathlib.Path(
+                    directory) / f'{self.metadata.sensor}_{counter}_{self.metadata.acquisition_date.isoformat()}.pysar.slc.xml'
+                tiff_fn = pathlib.Path(
+                    directory) / f'{self.metadata.sensor}_{counter}_{self.metadata.acquisition_date.isoformat()}.slc.tiff'
+
+        if not xml_filename is None:
+            root = ET.Element("PySar")
+            slc_elem = ET.SubElement(root, "Slc")
+            self.metadata.toXml(slc_elem)
+            if overwrite or not pathlib.Path(tiff_fn).exists():
+                self.slcdata.saveTiff(tiff_fn, self.slcdata.read())
+            self.slcdata.toXml(slc_elem, pathlib.Path(tiff_fn).relative_to(pathlib.Path(xml_filename).parent))
+            xml_str = ET.tostring(root, encoding="utf-8")
+            pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+
+            # Write the pretty-printed XML to a file
+            with open(xml_filename, "w", encoding="utf-8") as f:
+                f.write(pretty_xml)
+
 
 def fromTSX(xml_path: str, swath_id: int) -> Slc:
     slc = Slc()
@@ -56,19 +101,6 @@ def getPolCosFileNamesFromTsx(xml_path: str):
     return result
 
 
-def saveToPysarXml(slc, xml_path: str, slcdata: np.ndarray):
-    root = ET.Element("PySar")
-    slc_elem = ET.SubElement(root, "Slc")
-    slc.metadata.toXml(slc_elem)
-    tiff_name = slc.metadata.acquisition_date.isoformat() + ".slc.tiff"
-    slc.slcdata.toXml(slc_elem, tiff_name, xml_path, slcdata)
-    xml_str = ET.tostring(root, encoding="utf-8")
-    pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
-
-    # Write the pretty-printed XML to a file
-    with open(xml_path, "w", encoding="utf-8") as f:
-        f.write(pretty_xml)
-
 def fromPysarXml(xml_path: str) -> Slc:
     slc = Slc()
 
@@ -79,17 +111,6 @@ def fromPysarXml(xml_path: str) -> Slc:
     slc.metadata = metadata.fromXml(slc_elem.find("MetaData"))
     slc.slcdata = cpl_float_slcdata.fromXml(slc_elem, xml_path)
     return slc
-
-def getPysarPathName(slc: Slc, directory: str, overwrite=False) -> pathlib.Path:
-    path = pathlib.Path(directory)
-    if path.exists():
-        counter = 0
-        fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pysar.slc.xml'
-        while not overwrite and fullpath.exists():
-            counter += 1
-            fullpath = path / f'{slc.metadata.sensor}_{counter}_{slc.metadata.acquisition_date.isoformat()}.pysar.slc.xml'
-
-        return fullpath
 
 def fromBzarXml(xml_path: str) -> Slc:
     slc = Slc()
