@@ -228,7 +228,7 @@ def get_flat_phase_model(pair: resampled_pair.ResampledPair):
     return model, poly
 
 
-def create_flattened_interferogram(pair: resampled_pair.ResampledPair, phase_model, poly):
+def create_flattened_interferogram(pair: resampled_pair.ResampledPair, phase_model, poly, output = None):
     master = pair.master.slcdata.read()
     slave = pair.slave.slcdata.read()
 
@@ -238,7 +238,9 @@ def create_flattened_interferogram(pair: resampled_pair.ResampledPair, phase_mod
     #ys = np.arange(master.shape[0])
 
     for y in range(master.shape[0]):
-        print(f'Flat Interferogram: {y} / {master.shape[0]}')
+        if output is not None:
+            output("Flat interferogram", y, master.shape[0])
+
         interfero = master[y, :] * np.conjugate(slave[y, :])
         coordinates = np.column_stack((xs, np.full_like(xs, y)))
         point_poly = poly.transform(coordinates)

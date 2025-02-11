@@ -60,7 +60,7 @@ def subpixel_shift(master: np.ndarray, slave: np.ndarray, upsample_factor=16):
 
     return shifts, max_corr
 
-def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaData, coarse_shift_x: int, coarse_shift_y: int, master_data: np.ndarray, slave_data: np.ndarray, window_size_x:int = 64, window_size_y:int = 64, search_size_x:int = 16, search_size_y:int = 8, corr_threshold: float = 0.3, average_height: float = 0,  points=1600, upsample_factor=16) -> pd.DataFrame:
+def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaData, coarse_shift_x: int, coarse_shift_y: int, master_data: np.ndarray, slave_data: np.ndarray, window_size_x:int = 64, window_size_y:int = 64, search_size_x:int = 16, search_size_y:int = 8, corr_threshold: float = 0.3, average_height: float = 0,  points=1600, upsample_factor=16, output = None) -> pd.DataFrame:
 
     pnts = get_random_points(points*2, master_meta.footprint, average_height)
     win_radius_x = (window_size_x - 1) // 2
@@ -82,7 +82,8 @@ def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaDat
                 #if max_corr > corr_threshold:
 
                 result.loc[len(result)] = [m_x, m_y, coarse_shift_x-shift[0], coarse_shift_y-shift[1]]
-                print(f'Estimating Subpixel Shifts: {len(result)} / {points}: {coarse_shift_x-shift[0]}, {coarse_shift_y-shift[1]}')
+                if output is not None:
+                    output('Estimating Subpixel Shifts:', len(result), points, f' - {coarse_shift_x-shift[0]}, {coarse_shift_y-shift[1]}')
                 if len(result) >= points:
                     break
 

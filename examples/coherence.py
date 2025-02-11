@@ -1,5 +1,5 @@
 
-from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, coherence, flat_interferogram
+from pysar import slc, metadata, baseline, insar_pair, coregistration, tools, resampled_pair, coherence, flat_interferogram
 import pandas as pd
 import rasterio
 import numpy as np
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     phase_model, poly = flat_interferogram.get_flat_phase_model(pair)
 
     flat_phase = flat_interferogram.create_flattened_interferogram(pair, phase_model, poly)
-    coh_data = coherence.compute_coherence(pair.master.slcdata.read(), pair.slave.slcdata.read(), flat_interfero=flat_phase)
+    coh_data = coherence.compute_coherence(pair.master.slcdata.read(), pair.slave.slcdata.read(), flat_interfero=flat_phase, output=tools.output_console())
 
     coh = coherence.createCoherence(pair.master.metadata, pair.slave.metadata, coh_data)
     coh.save(directory=output_path)

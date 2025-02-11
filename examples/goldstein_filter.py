@@ -1,4 +1,4 @@
-from pysar import flat_interferogram, filter
+from pysar import flat_interferogram, filter, tools
 
 
 if __name__ == "__main__":
@@ -10,4 +10,4 @@ if __name__ == "__main__":
     filtered = filter.goldstein_filter(flat.read())
 
     filty = flat_interferogram.createFlatInterferogram(flat.master_metadata, flat.slave_metadata, filtered)
-    filty.save(directory=output_path, filtered=True)
+    filty.save(directory=output_path, filtered=True, output=tools.output_console)

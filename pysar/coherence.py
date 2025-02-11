@@ -118,7 +118,7 @@ def createCoherence(master: metadata.MetaData, slave: metadata.MetaData, coheren
 
     return coh
 
-def compute_coherence(master, slave, flat_interfero: np.ndarray = None, window_size=5):
+def compute_coherence(master, slave, flat_interfero: np.ndarray = None, window_size=5, output =  None):
     """
     Compute the coherence image from two coregistered complex SAR images, processing line by line.
 
@@ -146,7 +146,9 @@ def compute_coherence(master, slave, flat_interfero: np.ndarray = None, window_s
 
     # Process each line
     for y in range(rows):
-        print(f'Coherence processing: {y} / {rows}')
+        if output is not None:
+            output('Coherence processing', y, rows)
+
         if y-pad_size >= 0 and y-pad_size < rows:
             # Extract the current line and its neighborhood (window_size x window_size)
             master_line = master[y-pad_size:y + pad_size+1, :]

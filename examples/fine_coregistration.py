@@ -1,4 +1,4 @@
-from pysar import slc, metadata, baseline, insar_pair, coregistration
+from pysar import slc, metadata, baseline, insar_pair, coregistration, tools
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     print(f'Baseline calculation: {pair.perpendicular_baseline} m Perpendicular Baseline and a Temporal Baseline of {pair.temporal_baseline} days')
 
-    shifts = coregistration.subpixel_shifts(pair.master.metadata, pair.slave.metadata, int(pair.shift_x), int(pair.shift_y), pair.master.slcdata.read(), pair.slave.slcdata.read())
+    shifts = coregistration.subpixel_shifts(pair.master.metadata, pair.slave.metadata, int(pair.shift_x), int(pair.shift_y), pair.master.slcdata.read(), pair.slave.slcdata.read(), output=tools.output_console())
     shifts.to_csv(shifts_file, index=True)
 
     # Create a figure with two subplots

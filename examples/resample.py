@@ -1,4 +1,4 @@
-from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair
+from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, tools
 import pandas as pd
 import rasterio
 import numpy as np
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     slave = pair.slave.slcdata.read()
 
     print('Start resampling')
-    slave_resample = resample.resample_sar_image(slave, master.shape, est_dx, est_dy)
+    slave_resample = resample.resample_sar_image(slave, master.shape, est_dx, est_dy, output=tools.output_console)
     #slave_resample = np.zeros(master.shape, dtype=np.complex64)
 
     res_pair = resampled_pair.createResampledPair(pair.master, pair.slave, slave_resample)

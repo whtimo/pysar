@@ -17,7 +17,7 @@ def sinc_kernel(size, beta=5.0):
     kernel_2d = np.outer(kernel_1d, kernel_1d)
     return kernel_2d / np.sum(kernel_2d)  # Normalize
 
-def resample_sar_image(slave_image: np.ndarray, master_shape: tuple, ransac_pipeline_dx, ransac_pipeline_dy, kernel_size=11) -> np.ndarray:
+def resample_sar_image(slave_image: np.ndarray, master_shape: tuple, ransac_pipeline_dx, ransac_pipeline_dy, kernel_size=11, output = None) -> np.ndarray:
     """
     Resample a slave SAR image to match the master image shape using predicted shifts.
     Args:
@@ -46,7 +46,9 @@ def resample_sar_image(slave_image: np.ndarray, master_shape: tuple, ransac_pipe
 
     # Resample the slave image
     for y in range(height):
-        print(f'Resampling {y} / {height}')
+        if output is not None:
+            output('Resampling', y, height)
+
         for x in range(width):
             # Calculate the corresponding position in the slave image
             x_slave = x + dx[y, x]

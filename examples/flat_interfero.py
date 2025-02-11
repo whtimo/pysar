@@ -1,4 +1,4 @@
-from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, flat_interferogram
+from pysar import slc, metadata, baseline, insar_pair, coregistration, tools, resampled_pair, flat_interferogram
 import pandas as pd
 import rasterio
 import numpy as np
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    flat_phase = flat_interferogram.create_flattened_interferogram(pair, phase_model, poly)
+    flat_phase = flat_interferogram.create_flattened_interferogram(pair, phase_model, poly, tools.output_console)
 
     flatty = flat_interferogram.createFlatInterferogram(pair.master.metadata, pair.slave.metadata, flat_phase)
     flatty.save(directory=output_path)
