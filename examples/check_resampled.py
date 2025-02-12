@@ -4,7 +4,7 @@ sys.path.extend(['/Users/timo/src/pysar'])
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
-from pysar import insar_pair
+from pysar.insar import insar_pair
 
 if __name__ == "__main__":
 

@@ -2,7 +2,7 @@
 # sys.path.extend(['/Users/timo/src/pysar'])
 
 import matplotlib.pyplot as plt
-from pysar import slc
+from pysar.sar import slc
 import numpy as np
 
 if __name__ == "__main__":

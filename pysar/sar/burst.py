@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from pysar import orbit, footprint
+from pysar import footprint
+from pysar.sar import orbit
 import numpy as np
 from scipy.optimize import minimize_scalar
 from scipy.constants import c

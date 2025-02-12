@@ -1,6 +1,6 @@
 import numpy as np
 import rasterio
-from pysar import islcdata, cpl_float_memory_slcdata
+from pysar.sar import islcdata, cpl_float_memory_slcdata
 import xml.etree.ElementTree as ET
 import pathlib
 from rasterio.windows import Window

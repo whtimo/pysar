@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import fftpack
-from pysar import coordinates, footprint, metadata
+from pysar import coordinates, footprint
+from pysar.sar import metadata
 import random
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import RANSACRegressor, LinearRegression
@@ -60,7 +61,7 @@ def subpixel_shift(master: np.ndarray, slave: np.ndarray, upsample_factor=16):
 
     return shifts, max_corr
 
-def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaData, coarse_shift_x: int, coarse_shift_y: int, master_data: np.ndarray, slave_data: np.ndarray, window_size_x:int = 64, window_size_y:int = 64, search_size_x:int = 16, search_size_y:int = 8, corr_threshold: float = 0.3, average_height: float = 0,  points=1600, upsample_factor=16, output = None) -> pd.DataFrame:
+def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaData, coarse_shift_x: int, coarse_shift_y: int, master_data: np.ndarray, slave_data: np.ndarray, window_size_x:int = 64, window_size_y:int = 64, search_size_x:int = 16, search_size_y:int = 8, corr_threshold: float = 0.3, average_height: float = 0, points=1600, upsample_factor=16, output = None) -> pd.DataFrame:
 
     pnts = get_random_points(points*2, master_meta.footprint, average_height)
     win_radius_x = (window_size_x - 1) // 2

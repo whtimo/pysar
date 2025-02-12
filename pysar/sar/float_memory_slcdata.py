@@ -1,5 +1,5 @@
 import numpy as np
-from pysar import islcdata
+from pysar.sar import islcdata
 from rasterio.windows import Window
 
 #Single Swath and Single Burst Slc Data

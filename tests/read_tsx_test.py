@@ -1,7 +1,8 @@
 import unittest
 
 import pysar
-from pysar import slc, coordinates
+from pysar import coordinates
+from pysar.sar import slc
 import datetime
 import numpy as np
 
@@ -10,7 +11,7 @@ class ReadTsxTest(unittest.TestCase):
 
     def test_readTsx_RapaNui(self):
         filename = '../data/TDX1_SAR__SSC______ST_S_SRA_20231005T014450_20231005T014450/TDX1_SAR__SSC______ST_S_SRA_20231005T014450_20231005T014450.xml'
-        slc = pysar.slc.fromTSX(filename, 0)
+        slc = pysar.sar.slc.fromTSX(filename, 0)
         self.assertEqual('HH', slc.metadata.polarization)
         # self.assertEqual(7322, slc.slcdata.getWidth())
         # self.assertEqual(17230, slc.slcdata.getHeight() )
@@ -78,7 +79,7 @@ class ReadTsxTest(unittest.TestCase):
 
     def test_readTsx(self):
         path = '../data/TSX1_SAR__SSC______ST_S_SRA_20230425T222958_20230425T222958/TSX1_SAR__SSC______ST_S_SRA_20230425T222958_20230425T222958.xml'
-        slc = pysar.slc.fromTSX(path, 0)
+        slc = pysar.sar.slc.fromTSX(path, 0)
         self.assertEqual(17392, slc.metadata.number_rows)
         self.assertEqual(datetime.date(2023, 4, 25), slc.metadata.acquisition_date)
         geoc = np.array(coordinates.geodetic_to_geocentric(lat=30.46797876432665, lon=114.53029015184815))

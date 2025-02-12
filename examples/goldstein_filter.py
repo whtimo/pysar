@@ -1,5 +1,6 @@
-from pysar import flat_interferogram, filter, tools
-
+from pysar import tools
+from pysar.insar import flat_interferogram
+from pysar.sar import filter
 
 if __name__ == "__main__":
 

@@ -1,4 +1,5 @@
-from pysar import slc, metadata, baseline, insar_pair
+from pysar.insar import insar_pair
+from pysar.sar import slc
 
 if __name__ == "__main__":
 

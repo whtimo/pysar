@@ -1,6 +1,5 @@
-from pysar import slc, metadata, baseline, insar_pair, coregistration, tools, resampled_pair, flat_interferogram
-import pandas as pd
-import rasterio
+from pysar import tools
+from pysar.insar import flat_interferogram, resampled_pair
 import numpy as np
 import matplotlib.pyplot as plt
 

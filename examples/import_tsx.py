@@ -1,6 +1,4 @@
-from pysar import slc
-import pysar
-import numpy as np
+from pysar.sar import slc
 
 if __name__ == "__main__":
 

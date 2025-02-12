@@ -1,10 +1,10 @@
 import unittest
 
-import pysar
-from pysar import slc, coordinates
+from pysar import coordinates
+from pysar.sar import slc
 import datetime
 import numpy as np
-import pathlib
+
 
 class ImportBzarTest(unittest.TestCase):
 

@@ -2,8 +2,9 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pathlib
 import numpy as np
-from pysar import metadata, cpl_float_slcdata
-from rasterio.windows import Window, bounds
+from pysar.sar import metadata
+from rasterio.windows import Window
+
 
 class Amp:
     """

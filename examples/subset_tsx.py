@@ -1,8 +1,7 @@
 import sys
 sys.path.extend(['/Users/timo/src/pysar'])
 
-from pysar import slc
-import pysar
+from pysar.sar import slc
 import numpy as np
 from rasterio.windows import Window
 import matplotlib.pyplot as plt

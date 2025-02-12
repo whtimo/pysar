@@ -1,5 +1,6 @@
 import numpy as np
-from pysar import footprint, coordinates, burst, metadata
+from pysar import footprint, coordinates
+from pysar.sar import burst, metadata
 import random
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression

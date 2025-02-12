@@ -1,4 +1,6 @@
-from pysar import metadata, footprint, resampled_pair, coordinates, cpl_float_memory_slcdata, baseline
+from pysar import footprint, coordinates
+from pysar.insar import resampled_pair, baseline
+from pysar.sar import metadata, cpl_float_memory_slcdata
 import numpy as np
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression

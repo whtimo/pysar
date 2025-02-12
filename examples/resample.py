@@ -1,7 +1,6 @@
-from pysar import slc, metadata, baseline, insar_pair, coregistration, resample, resampled_pair, tools
+from pysar import tools
+from pysar.insar import resampled_pair, resample, coregistration, insar_pair
 import pandas as pd
-import rasterio
-import numpy as np
 
 if __name__ == "__main__":
 

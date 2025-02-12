@@ -1,5 +1,4 @@
-from pysar import slc, metadata, baseline, insar_pair, coregistration
-import pandas as pd
+from pysar.insar import coregistration, insar_pair
 import matplotlib.pyplot as plt
 import numpy as np
 
