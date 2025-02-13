@@ -5,7 +5,7 @@ import tempfile
 import os
 from pathlib import Path
 import shutil
-from amplitude_dispersion import calculate_amplitude_dispersion  # Your main function
+from pysar.psi.amplitude_dispersion import calculate_amplitude_dispersion  # Your main function
 
 
 class TestAmplitudeDispersion(unittest.TestCase):

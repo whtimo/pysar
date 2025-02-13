@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from ps_parameter_estimation_periodogram import PSIParameterEstimator  # Replace 'your_module' with the actual module name
+from pysar.psi.ps_parameter_estimation_periodogram import PSIParameterEstimator  # Replace 'your_module' with the actual module name
 import random
 
 class TestPSIParameterEstimator(unittest.TestCase):

@@ -20,8 +20,8 @@ class ImportTsxTest(unittest.TestCase):
         out_filepath = '../data'
 
         tsx = pysar.sar.slc.fromTSX(filename, 0)
-        out_filename = pysar.sar.slc.getPysarPathName(tsx, out_filepath, True)
-        pysar.sar.slc.saveToPysarXml(tsx, out_filename, None)
+        #out_filename = pysar.sar.slc.getPysarPathName(tsx, out_filepath, True)
+        out_filename = tsx.save(out_filepath, savetiff=False)
 
         slc = pysar.sar.slc.fromPysarXml(out_filename)
         self.assertEqual('HH', slc.metadata.polarization)
@@ -88,8 +88,8 @@ class ImportTsxTest(unittest.TestCase):
         path = '../data/TSX1_SAR__SSC______ST_S_SRA_20230425T222958_20230425T222958/TSX1_SAR__SSC______ST_S_SRA_20230425T222958_20230425T222958.xml'
         out_filepath = '../data'
         tsx = pysar.sar.slc.fromTSX(path, 0)
-        out_filename = pysar.sar.slc.getPysarPathName(tsx, out_filepath, True)
-        pysar.sar.slc.saveToPysarXml(tsx, out_filename, None)
+        #out_filename = pysar.sar.slc.getPysarPathName(tsx, out_filepath, True)
+        out_filename = tsx.save(out_filepath, savetiff=False)
 
         slc = pysar.sar.slc.fromPysarXml(out_filename)
         self.assertEqual(17392, slc.metadata.number_rows)

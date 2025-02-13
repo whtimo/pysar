@@ -26,7 +26,7 @@ class Slc:
         newslc.slcdata = self.slcdata.multilook(multilook_range, multilook_azimuth)
         return newslc
 
-    def save(self,  directory: str = None, filename: str = None, tiff_filename: str = None, overwrite: bool = False):
+    def save(self,  directory: str = None, filename: str = None, tiff_filename: str = None, savetiff: bool = True, overwrite: bool = False) -> str:
         """
         Saves the SLC data
 
@@ -57,7 +57,7 @@ class Slc:
             root = ET.Element("PySar")
             slc_elem = ET.SubElement(root, "Slc")
             self.metadata.toXml(slc_elem)
-            if overwrite or not pathlib.Path(tiff_fn).exists():
+            if savetiff and (overwrite or not pathlib.Path(tiff_fn).exists()):
                 self.slcdata.saveTiff(tiff_fn, self.slcdata.read())
             self.slcdata.toXml(slc_elem, pathlib.Path(tiff_fn).relative_to(pathlib.Path(xml_filename).parent))
             xml_str = ET.tostring(root, encoding="utf-8")
@@ -66,6 +66,10 @@ class Slc:
             # Write the pretty-printed XML to a file
             with open(xml_filename, "w", encoding="utf-8") as f:
                 f.write(pretty_xml)
+
+            return xml_filename
+
+        return ""
 
 
 def fromTSX(xml_path: str, swath_id: int) -> Slc:
