@@ -26,7 +26,7 @@ class MetaData:
         self.footprint = None
         self.polarization = None
         self.orbit_direction = None
-        self._incidence_interpolator = None
+        #self._incidence_interpolator = None
 
         # These are not necessary
         self._radar_frequency = None
@@ -37,8 +37,8 @@ class MetaData:
     def is_valid(self, x, y, winx=0, winy=0):
         return winx <= x < self.number_columns - winx and winy <= y < self.number_rows - winy
 
-    def get_incidence_angle(self, col):
-        return self._incidence_interpolator(col)
+    # def get_incidence_angle(self, col):
+    #     return self._incidence_interpolator(col)
 
     def subset(self, window: Window):
         newmeta = MetaData()
@@ -53,11 +53,11 @@ class MetaData:
         newmeta.footprint = newmeta._burst.footprint
         newmeta.polarization = self.polarization
         newmeta.orbit_direction = self.orbit_direction
-        columns = np.arange(window.col_off, window.col_off + window.width, 100)
-        angles = [self._incidence_interpolator(col) for col in columns]
-        newmeta._incidence_interpolator = interp1d(
-                columns, angles, kind="cubic", fill_value="extrapolate"
-            )
+        #columns = np.arange(window.col_off, window.col_off + window.width, 100)
+        # angles = [self._incidence_interpolator(col) for col in columns]
+        # newmeta._incidence_interpolator = interp1d(
+        #         columns, angles, kind="cubic", fill_value="extrapolate"
+        #     )
 
         return newmeta
 
@@ -74,12 +74,12 @@ class MetaData:
         newmeta.footprint = newmeta._burst.footprint
         newmeta.polarization = self.polarization
         newmeta.orbit_direction = self.orbit_direction
-        columns = np.arange(0, self.number_columns, 100)
-        angles = [self._incidence_interpolator(col) for col in columns]
-        newcolumns = [col / multilook_range for col in columns]
-        newmeta.incidence_interpolator = interp1d(
-                newcolumns, angles, kind="cubic", fill_value="extrapolate"
-            )
+        # columns = np.arange(0, self.number_columns, 100)
+        # angles = [self._incidence_interpolator(col) for col in columns]
+        # newcolumns = [col / multilook_range for col in columns]
+        # newmeta.incidence_interpolator = interp1d(
+        #         newcolumns, angles, kind="cubic", fill_value="extrapolate"
+        #     )
 
         return newmeta
 
@@ -119,18 +119,18 @@ class MetaData:
             orbitdir_elem = ET.SubElement(meta_elem, "OrbitDirection")
             orbitdir_elem.text = self.orbit_direction
 
-        # Save incidence_interpolator
-        if self._incidence_interpolator is not None and self.number_columns is not None:
-            # Sample incidence angles every 500 pixels
-            columns = np.arange(0, self.number_columns, 500)
-            incidence_angles = [self._incidence_interpolator(col) for col in columns]
-
-            # Save columns and incidence_angles
-            incidence_elem = ET.SubElement(meta_elem, "IncidenceInterpolator")
-            for col, angle in zip(columns, incidence_angles):
-                sample_elem = ET.SubElement(incidence_elem, "sample")
-                sample_elem.set("column", str(col))
-                sample_elem.set("angle", str(angle))
+        # # Save incidence_interpolator
+        # if self._incidence_interpolator is not None and self.number_columns is not None:
+        #     # Sample incidence angles every 500 pixels
+        #     columns = np.arange(0, self.number_columns, 500)
+        #     incidence_angles = [self._incidence_interpolator(col) for col in columns]
+        #
+        #     # Save columns and incidence_angles
+        #     incidence_elem = ET.SubElement(meta_elem, "IncidenceInterpolator")
+        #     for col, angle in zip(columns, incidence_angles):
+        #         sample_elem = ET.SubElement(incidence_elem, "sample")
+        #         sample_elem.set("column", str(col))
+        #         sample_elem.set("angle", str(angle))
 
         orbit_elem = ET.SubElement(meta_elem, "Orbit")
         self._orbit.toXml(orbit_elem)
@@ -156,39 +156,40 @@ def fromTSX(xml_path: str, polarization: str) -> MetaData:
     meta.wavelength = c / meta._radar_frequency
     meta.sensor = root.find('generalHeader/mission').text
     meta.orbit_direction = root.find('productInfo/missionInfo/orbitDirection').text.lower()
-    def parse_grid_points(xml_path):
-        # Parse the XML string
-        root = ET.parse(xml_path)
+    # def parse_grid_points(xml_path):
+    #     # Parse the XML string
+    #     root = ET.parse(xml_path)
+    #
+    #     # Extract column and incidence angle values
+    #     columns = []
+    #     incidence_angles = []
+    #
+    #     for grid_point in root.findall('.//gridPoint'):
+    #         col = int(grid_point.find('col').text)
+    #         if not columns.__contains__(col):
+    #             inc = float(grid_point.find('inc').text)
+    #             columns.append(col)
+    #             incidence_angles.append(inc)
+    #
+    #     return columns, incidence_angles
+    #
+    # def create_incidence_angle_interpolator(xml_path):
+    #     # Parse the grid points
+    #     columns, incidence_angles = parse_grid_points(xml_path)
+    #
+    #     # Sort columns and incidence angles (in case they are not ordered)
+    #     sorted_indices = np.argsort(columns)
+    #     columns_sorted = np.array(columns)[sorted_indices]
+    #     incidence_angles_sorted = np.array(incidence_angles)[sorted_indices]
+    #
+    #     # Create an interpolation function
+    #     interpolator = interp1d(columns_sorted, incidence_angles_sorted, kind='cubic', fill_value='extrapolate')
+    #
+    #     return interpolator
+    #
+    # georef_path = pathlib.Path(xml_path).parent / 'ANNOTATION' / 'GEOREF.xml'
+    # meta._incidence_interpolator = create_incidence_angle_interpolator(georef_path)
 
-        # Extract column and incidence angle values
-        columns = []
-        incidence_angles = []
-
-        for grid_point in root.findall('.//gridPoint'):
-            col = int(grid_point.find('col').text)
-            if not columns.__contains__(col):
-                inc = float(grid_point.find('inc').text)
-                columns.append(col)
-                incidence_angles.append(inc)
-
-        return columns, incidence_angles
-
-    def create_incidence_angle_interpolator(xml_path):
-        # Parse the grid points
-        columns, incidence_angles = parse_grid_points(xml_path)
-
-        # Sort columns and incidence angles (in case they are not ordered)
-        sorted_indices = np.argsort(columns)
-        columns_sorted = np.array(columns)[sorted_indices]
-        incidence_angles_sorted = np.array(incidence_angles)[sorted_indices]
-
-        # Create an interpolation function
-        interpolator = interp1d(columns_sorted, incidence_angles_sorted, kind='cubic', fill_value='extrapolate')
-
-        return interpolator
-
-    georef_path = pathlib.Path(xml_path).parent / 'ANNOTATION' / 'GEOREF.xml'
-    meta._incidence_interpolator = create_incidence_angle_interpolator(georef_path)
     return meta
 
 
@@ -236,20 +237,20 @@ def fromXml(root: ET.Element) -> MetaData:
     if polarization_elem is not None and polarization_elem.text:
         metadata.polarization = polarization_elem.text
 
-    # Load incidence_interpolator
-    incidence_elem = root.find("IncidenceInterpolator")
-    if incidence_elem is not None:
-        columns = []
-        angles = []
-        for sample_elem in incidence_elem.findall("sample"):
-            columns.append(float(sample_elem.get("column")))
-            angles.append(float(sample_elem.get("angle")))
-
-        # Reconstruct the interpolator
-        if columns and angles:
-            metadata._incidence_interpolator = interp1d(
-                columns, angles, kind="cubic", fill_value="extrapolate"
-            )
+    # # Load incidence_interpolator
+    # incidence_elem = root.find("IncidenceInterpolator")
+    # if incidence_elem is not None:
+    #     columns = []
+    #     angles = []
+    #     for sample_elem in incidence_elem.findall("sample"):
+    #         columns.append(float(sample_elem.get("column")))
+    #         angles.append(float(sample_elem.get("angle")))
+    #
+    #     # Reconstruct the interpolator
+    #     if columns and angles:
+    #         metadata._incidence_interpolator = interp1d(
+    #             columns, angles, kind="cubic", fill_value="extrapolate"
+    #         )
 
     return metadata
 
@@ -267,38 +268,38 @@ def fromBzarXml(root: ET.Element) -> MetaData:
     burst_elem = meta_elem.find("Bursts/Burst")
     metadata._burst = burst.fromBzarXml(burst_elem, metadata._orbit, type)
 
-    inc_elem = meta_elem.find("GeoGrid")
-
-    def parse_grid_points(root: ET.Element):
-
-        # Extract column and incidence angle values
-        columns = []
-        incidence_angles = []
-
-        for grid_point in root.findall('Grid'):
-            col = int(grid_point.find('Samples').text)
-            if not columns.__contains__(col):
-                inc = float(grid_point.find('IncidenceAngle').text)
-                columns.append(col)
-                incidence_angles.append(inc)
-
-        return columns, incidence_angles
-
-    def create_incidence_angle_interpolator(root: ET.Element):
-        # Parse the grid points
-        columns, incidence_angles = parse_grid_points(root)
-
-        # Sort columns and incidence angles (in case they are not ordered)
-        sorted_indices = np.argsort(columns)
-        columns_sorted = np.array(columns)[sorted_indices]
-        incidence_angles_sorted = np.array(incidence_angles)[sorted_indices]
-
-        # Create an interpolation function
-        interpolator = interp1d(columns_sorted, incidence_angles_sorted, kind='cubic', fill_value='extrapolate')
-
-        return interpolator
-
-    metadata._incidence_interpolator = create_incidence_angle_interpolator(inc_elem)
+    # inc_elem = meta_elem.find("GeoGrid")
+    #
+    # def parse_grid_points(root: ET.Element):
+    #
+    #     # Extract column and incidence angle values
+    #     columns = []
+    #     incidence_angles = []
+    #
+    #     for grid_point in root.findall('Grid'):
+    #         col = int(grid_point.find('Samples').text)
+    #         if not columns.__contains__(col):
+    #             inc = float(grid_point.find('IncidenceAngle').text)
+    #             columns.append(col)
+    #             incidence_angles.append(inc)
+    #
+    #     return columns, incidence_angles
+    #
+    # def create_incidence_angle_interpolator(root: ET.Element):
+    #     # Parse the grid points
+    #     columns, incidence_angles = parse_grid_points(root)
+    #
+    #     # Sort columns and incidence angles (in case they are not ordered)
+    #     sorted_indices = np.argsort(columns)
+    #     columns_sorted = np.array(columns)[sorted_indices]
+    #     incidence_angles_sorted = np.array(incidence_angles)[sorted_indices]
+    #
+    #     # Create an interpolation function
+    #     interpolator = interp1d(columns_sorted, incidence_angles_sorted, kind='cubic', fill_value='extrapolate')
+    #
+    #     return interpolator
+    #
+    # metadata._incidence_interpolator = create_incidence_angle_interpolator(inc_elem)
 
     footprint_elem = meta_elem.find("Footprint")
     metadata.footprint = footprint.fromXml(footprint_elem)
@@ -337,5 +338,22 @@ def fromBzarXml(root: ET.Element) -> MetaData:
     orbitdir_elem = meta_elem.find("OrbitDirection")
     if orbitdir_elem is not None and orbitdir_elem.text:
         metadata.orbit_direction = orbitdir_elem.text.lower()
+
+    return metadata
+
+def fromDim(root: ET.Element) -> MetaData:
+    metadata = MetaData()
+
+    metadata.footprint = footprint.fromDim(root)
+    metadata.sensor = root.find(".//MDATTR[@name='MISSION']").text
+    ref_time = datetime.datetime.strptime(root.find(".//MDATTR[@name='STATE_VECTOR_TIME']").text, "%d-%b-%Y %H:%M:%S.%f")
+    metadata._orbit = orbit.fromDim(root.find("MDElem[@name='Orbit_State_Vectors']"), ref_time)
+    metadata.orbit_direction = root.find(".//MDATTR[@name='PASS']").text
+    metadata.polarization = root.find(".//MDATTR[@name='mds1_tx_rx_polar']").text
+    metadata._radar_frequency = float(root.find(".//MDATTR[@name='radar_frequency']").text) * 1e6
+    metadata.wavelength = c / metadata._radar_frequency
+    metadata.number_rows = int(root.find(".//MDATTR[@name='num_output_lines']").text)
+    metadata.number_columns = int(root.find(".//MDATTR[@name='num_samples_per_line']").text)
+    metadata._burst = burst.fromDim(root, metadata._orbit, metadata.footprint)
 
     return metadata

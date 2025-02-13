@@ -198,3 +198,17 @@ def fromXml(root: ET.Element) -> Footprint:
         ]
 
     return footprint
+
+def fromDim(root: ET.Element) -> Footprint:
+    coords = []
+    coords.append((float(root.find(".//MDATTR[@name='first_near_lat']").text), float(root.find(".//MDATTR[@name='first_near_long']").text)))
+    coords.append((float(root.find(".//MDATTR[@name='first_far_lat']").text),
+                  float(root.find(".//MDATTR[@name='first_far_long']").text)))
+    coords.append((float(root.find(".//MDATTR[@name='last_near_lat']").text),
+                  float(root.find(".//MDATTR[@name='last_near_long']").text)))
+    coords.append((float(root.find(".//MDATTR[@name='last_far_lat']").text),
+                  float(root.find(".//MDATTR[@name='last_far_long']").text)))
+
+    footprint = Footprint(coords)
+
+    return footprint

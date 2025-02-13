@@ -130,3 +130,54 @@ def fromXml(root: ET.Element, ref_time: datetime = None) -> Orbit:
     orbit._spline_z = CubicHermiteSpline(orbit.times, orbit.positions[:, 2], orbit.velocities[:, 2])
 
     return orbit
+
+import xml.etree.ElementTree as ET
+from datetime import datetime
+import numpy as np
+from scipy.interpolate import CubicHermiteSpline
+
+class Orbit:
+    def __init__(self):
+        self.reference_time = None
+        self.times = None
+        self.positions = None
+        self.velocities = None
+        self._spline_x = None
+        self._spline_y = None
+        self._spline_z = None
+
+def fromDim(root: ET.Element, ref_time: datetime) -> Orbit:
+    orbit = Orbit()
+    orbit.reference_time = ref_time
+
+    t = []
+    p = []
+    v = []
+
+    # Load times, positions, and velocities
+    for md_elem in root.findall("MDElem"):
+        time_str = md_elem.find("MDATTR[@name='time']").text
+        time = datetime.strptime(time_str, "%d-%b-%Y %H:%M:%S.%f")
+        delta_time = (time - ref_time).total_seconds()
+        t.append(delta_time)
+
+        x_pos = float(md_elem.find("MDATTR[@name='x_pos']").text)
+        y_pos = float(md_elem.find("MDATTR[@name='y_pos']").text)
+        z_pos = float(md_elem.find("MDATTR[@name='z_pos']").text)
+        p.append([x_pos, y_pos, z_pos])
+
+        x_vel = float(md_elem.find("MDATTR[@name='x_vel']").text)
+        y_vel = float(md_elem.find("MDATTR[@name='y_vel']").text)
+        z_vel = float(md_elem.find("MDATTR[@name='z_vel']").text)
+        v.append([x_vel, y_vel, z_vel])
+
+    orbit.times = np.array(t)
+    orbit.positions = np.array(p)  # Shape: (n, 3)
+    orbit.velocities = np.array(v)  # Shape: (n, 3)
+
+    # Create splines for each dimension
+    orbit._spline_x = CubicHermiteSpline(orbit.times, orbit.positions[:, 0], orbit.velocities[:, 0])
+    orbit._spline_y = CubicHermiteSpline(orbit.times, orbit.positions[:, 1], orbit.velocities[:, 1])
+    orbit._spline_z = CubicHermiteSpline(orbit.times, orbit.positions[:, 2], orbit.velocities[:, 2])
+
+    return orbit

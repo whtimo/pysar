@@ -1,9 +1,10 @@
 import numpy as np
 from pysar.insar import coregistration, baseline
-from pysar.sar import slc, cpl_float_slcdata, metadata, cpl_float_memory_slcdata
+from pysar.sar import slc, cpl_float_slcdata, iq_float_slcdata, metadata, cpl_float_memory_slcdata
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pathlib
+from collections import defaultdict
 
 class ResampledPair:
     def __init__(self, filepath:str = None):
@@ -123,6 +124,70 @@ def fromBzarXml(xml_path: str) -> ResampledPair:
         pair.slave.slcdata = cpl_float_slcdata.fromXml(pair_elem.find("SlaveSlcImage"), xml_path)
 
     return pair
+
+def fromDimS1Deburst(dim_path: str):
+    result = []
+
+    root = ET.parse(dim_path).getroot()
+    data_elem = root.find("Data_Access")
+
+    data_dict = defaultdict(dict)
+
+    for data_file in data_elem.findall(".//Data_File"):
+        file_path = data_file.find("DATA_FILE_PATH").attrib["href"]
+        filename = file_path.split("/")[-1]  # Extract the filename from the path
+        parts = filename.split("_")
+        date = parts[-1].replace(".hdr", "")  # Extract the date from the filename
+
+        # Determine if it's a master or slave file
+        if "_mst_" in filename:
+            key = "master"
+        elif "_slv" in filename:
+            key = date
+        else:
+            continue  # Skip if it's neither master nor slave
+
+        # Determine if it's an 'i' or 'q' file
+        if filename.startswith("i_"):
+            component = "i"
+        elif filename.startswith("q_"):
+            component = "q"
+        else:
+            continue  # Skip if it's neither 'i' nor 'q'
+
+        # Add the filename to the result dictionary
+        if key not in data_dict:
+            data_dict[key] = {}
+        data_dict[key][component] = file_path
+
+
+    sources_elem = root.find("Dataset_Sources")
+    master_meta_elem = None
+    slave_meta_elems = None
+
+    for mdelem in sources_elem.findall("MDElem"):
+        if mdelem.attrib["name"] == "metadata":
+            for mdel in mdelem.findall("MDElem"):
+                if mdel.attrib["name"] == "Abstracted_Metadata":
+                    master_meta_elem = mdel
+                if mdel.attrib["name"] == "Slave_Metadata":
+                    slave_meta_elems = mdel
+
+    if master_meta_elem is not None and slave_meta_elems is not None:
+        for slv_meta_elem in slave_meta_elems.findall("MDElem"):
+            pair = ResampledPair()
+            #pair.perpendicular_baseline = float(pair_elem.attrib['perpendicularBaseline'])
+            #pair.temporal_baseline = int(pair_elem.attrib['temporalBaseline'])
+            pair.master = slc.Slc()
+            pair.master.metadata = metadata.fromDim(master_meta_elem)
+            pair.master.slcdata = iq_float_slcdata.IqFloatSlcData(data_dict['master']['i'], data_dict['master']['q'])
+            pair.slave = slc.Slc()
+            pair.slave.metadata = metadata.fromDim(slv_meta_elem)
+            pair.slave.slcdata = iq_float_slcdata.IqFloatSlcData(data_dict[pair.slave.metadata.acquisition_date.strftime("%d%b%Y")]['i'], data_dict[pair.slave.metadata.acquisition_date.strftime("%d%b%Y")]['q'])
+
+            result.append(pair)
+
+    return result
 
 # def createFilenames(pair: ResampledPair, directory:str) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
 #     xml_path = pathlib.Path(directory) / f'{pair.master.metadata.sensor}_{pair.master.metadata.acquisition_date.isoformat()}__{pair.slave.metadata.sensor}_{pair.slave.metadata.acquisition_date.isoformat()}.pysar.resampled.xml'

@@ -277,3 +277,22 @@ def fromBzarXml(root: ET.Element, orbit, type: str, footprint = None) -> Burst:
         burst.first_azimuth_datetime = datetime.fromisoformat(azimuth_datetime_elem.text)
 
     return burst
+
+def fromDim(root: ET.Element, orbit, footprint) -> Burst:
+    burst = Burst()
+    burst.orbit = orbit
+    burst.footprint = footprint
+    slant_range_to_first_pixel = float(root.find(".//MDATTR[@name='slant_range_to_first_pixel']").text)
+    burst.range_time_to_first_pixel = slant_range_to_first_pixel / c
+    burst._range_sampling_rate =  float(root.find(".//MDATTR[@name='range_sampling_rate']").text) * 1e6
+    burst.column_spacing = 1 / burst._range_sampling_rate
+    burst.row_spacing = float(root.find(".//MDATTR[@name='line_time_interval']").text)
+    burst.number_rows = int(root.find(".//MDATTR[@name='num_output_lines']").text)
+    burst.number_columns = int(root.find(".//MDATTR[@name='num_samples_per_line']").text)
+    first_line_time_str = root.find(".//MDATTR[@name='first_line_time']").text
+    burst.first_azimuth_datetime = datetime.strptime(first_line_time_str, "%d-%b-%Y %H:%M:%S.%f")
+    rt = burst.orbit.reference_time
+    t = (burst.first_azimuth_datetime - rt).total_seconds()
+    burst.first_azimuth_time = t
+
+    return burst
