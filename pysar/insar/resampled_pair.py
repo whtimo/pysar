@@ -158,7 +158,7 @@ def fromDimS1Deburst(dim_path: str):
         # Add the filename to the result dictionary
         if key not in data_dict:
             data_dict[key] = {}
-        data_dict[key][component] = file_path
+        data_dict[key][component] = (pathlib.Path(dim_path).parent / file_path).with_suffix(".img")
 
 
     sources_elem = root.find("Dataset_Sources")
@@ -176,14 +176,18 @@ def fromDimS1Deburst(dim_path: str):
     if master_meta_elem is not None and slave_meta_elems is not None:
         for slv_meta_elem in slave_meta_elems.findall("MDElem"):
             pair = ResampledPair()
-            #pair.perpendicular_baseline = float(pair_elem.attrib['perpendicularBaseline'])
-            #pair.temporal_baseline = int(pair_elem.attrib['temporalBaseline'])
             pair.master = slc.Slc()
             pair.master.metadata = metadata.fromDim(master_meta_elem)
             pair.master.slcdata = iq_float_slcdata.IqFloatSlcData(data_dict['master']['i'], data_dict['master']['q'])
             pair.slave = slc.Slc()
             pair.slave.metadata = metadata.fromDim(slv_meta_elem)
             pair.slave.slcdata = iq_float_slcdata.IqFloatSlcData(data_dict[pair.slave.metadata.acquisition_date.strftime("%d%b%Y")]['i'], data_dict[pair.slave.metadata.acquisition_date.strftime("%d%b%Y")]['q'])
+
+            baselines_elem = master_meta_elem.find(".//MDElem[@name='Baselines']")
+            base_el = baselines_elem.find(f".//MDElem[@name='Ref_{pair.master.metadata.acquisition_date.strftime("%d%b%Y")}']")
+            slv_base_el = base_el.find(f".//MDElem[@name='Secondary_{pair.slave.metadata.acquisition_date.strftime("%d%b%Y")}']")
+            pair.perpendicular_baseline = float(slv_base_el.find(".//MDATTR[@name='Perp Baseline']").text)
+            pair.temporal_baseline = -int(np.round(float(slv_base_el.find(".//MDATTR[@name='Temp Baseline']").text)))
 
             result.append(pair)
 

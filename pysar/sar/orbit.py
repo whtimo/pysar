@@ -131,21 +131,6 @@ def fromXml(root: ET.Element, ref_time: datetime = None) -> Orbit:
 
     return orbit
 
-import xml.etree.ElementTree as ET
-from datetime import datetime
-import numpy as np
-from scipy.interpolate import CubicHermiteSpline
-
-class Orbit:
-    def __init__(self):
-        self.reference_time = None
-        self.times = None
-        self.positions = None
-        self.velocities = None
-        self._spline_x = None
-        self._spline_y = None
-        self._spline_z = None
-
 def fromDim(root: ET.Element, ref_time: datetime) -> Orbit:
     orbit = Orbit()
     orbit.reference_time = ref_time

@@ -355,5 +355,6 @@ def fromDim(root: ET.Element) -> MetaData:
     metadata.number_rows = int(root.find(".//MDATTR[@name='num_output_lines']").text)
     metadata.number_columns = int(root.find(".//MDATTR[@name='num_samples_per_line']").text)
     metadata._burst = burst.fromDim(root, metadata._orbit, metadata.footprint)
+    metadata.acquisition_date = metadata._burst.first_azimuth_datetime.date()
 
     return metadata
