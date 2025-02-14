@@ -1,12 +1,10 @@
 from pysar.sar import slc, metadata
-from pysar.insar import resampled_pair
+
 
 if __name__ == "__main__":
 
-    file_name = '/home/timo/Data/LVS1_pysar/deburst/S1A_IW_SLC__1SDV_20230208T134359_20230208T134427_047145_05A808_56A7_Orb_Stack_esd_deb.dim'
+    file_name = '/home/timo/Data/LVS1_pysar/single/S1A_IW_SLC__1SDV_20230127T134400_20230127T134428_046970_05A22D_7B8E_split_deb.dim'
     output_path = '/home/timo/Data/LVS1_pysar'
 
-    pairs = resampled_pair.fromDimS1Deburst(file_name)
-
-    for pair in pairs:
-        pair.save(directory=output_path, overwrite=False)
+    slc = slc.fromDim(file_name)
+    slc.save(directory=output_path)

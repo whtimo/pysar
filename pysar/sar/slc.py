@@ -1,9 +1,9 @@
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pathlib
-from pysar.sar import cpl_float_slcdata, metadata
+from pysar.sar import cpl_float_slcdata, iq_float_slcdata, metadata
 from rasterio.windows import Window
-
+from collections import defaultdict
 
 class Slc:
     """
@@ -126,3 +126,45 @@ def fromBzarXml(xml_path: str) -> Slc:
     slc.metadata = metadata.fromBzarXml(slc_elem.find("Band"))
     slc.slcdata = cpl_float_slcdata.fromXml(slc_elem, xml_path)
     return slc
+
+def fromDim(dim_path: str):
+
+    root = ET.parse(dim_path).getroot()
+    data_elem = root.find("Data_Access")
+
+    data_dict = defaultdict(dict)
+
+    for data_file in data_elem.findall(".//Data_File"):
+        file_path = data_file.find("DATA_FILE_PATH").attrib["href"]
+        filename = file_path.split("/")[-1]  # Extract the filename from the path
+
+        # Determine if it's an 'i' or 'q' file
+        if filename.startswith("i_"):
+            component = "i"
+        elif filename.startswith("q_"):
+            component = "q"
+        else:
+            continue  # Skip if it's neither 'i' nor 'q'
+
+
+        data_dict[component] = (pathlib.Path(dim_path).parent / file_path).with_suffix(".img")
+
+
+    sources_elem = root.find("Dataset_Sources")
+    master_meta_elem = None
+    slave_meta_elems = None
+
+    for mdelem in sources_elem.findall("MDElem"):
+        if mdelem.attrib["name"] == "metadata":
+            for mdel in mdelem.findall("MDElem"):
+                if mdel.attrib["name"] == "Abstracted_Metadata":
+                    master_meta_elem = mdel
+
+    if master_meta_elem is not None:
+        slc = Slc()
+        slc.metadata = metadata.fromDim(master_meta_elem)
+        slc.slcdata = iq_float_slcdata.IqFloatSlcData(data_dict['i'], data_dict['q'])
+
+        return slc
+
+    return None

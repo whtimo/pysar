@@ -125,7 +125,7 @@ def fromBzarXml(xml_path: str) -> ResampledPair:
 
     return pair
 
-def fromDimS1Deburst(dim_path: str):
+def fromDim(dim_path: str):
     result = []
 
     root = ET.parse(dim_path).getroot()
@@ -192,10 +192,3 @@ def fromDimS1Deburst(dim_path: str):
             result.append(pair)
 
     return result
-
-# def createFilenames(pair: ResampledPair, directory:str) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
-#     xml_path = pathlib.Path(directory) / f'{pair.master.metadata.sensor}_{pair.master.metadata.acquisition_date.isoformat()}__{pair.slave.metadata.sensor}_{pair.slave.metadata.acquisition_date.isoformat()}.pysar.resampled.xml'
-#     master_tiff_path = pathlib.Path(directory) / f'{pair.master.metadata.sensor}_{pair.master.metadata.acquisition_date.isoformat()}.slc.tiff'
-#     slave_tiff_path = pathlib.Path(directory) / f'{pair.master.metadata.sensor}_{pair.master.metadata.acquisition_date.isoformat()}__{pair.slave.metadata.sensor}_{pair.slave.metadata.acquisition_date.isoformat()}.slc.resampled.tiff'
-#
-#     return xml_path, master_tiff_path, slave_tiff_path
