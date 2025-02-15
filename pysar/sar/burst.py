@@ -6,6 +6,25 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 from scipy.constants import c
 from rasterio.windows import Window
+from multiprocessing import Pool
+
+# Define the objective function (outside the loop to avoid redefinition)
+def __objective(time, target_pos, splx, sply, splz):
+    orbit_pos = np.array([splx(time), sply(time), splz(time)])
+    return np.sum((orbit_pos - target_pos) ** 2)
+
+# Worker function for a single (x, y, z) tuple
+def _worker(args):
+    target_p, splx, sply, splz, time_min, time_max, time_tol = args
+    result = minimize_scalar(
+        __objective,
+        bounds=(time_min, time_max),
+        method='bounded',
+        args=(target_p, splx, sply, splz,),
+        options={'xatol': time_tol}
+    )
+    return result.x if result.success else np.nan
+
 
 class Burst:
     def __init__(self):
@@ -52,7 +71,7 @@ class Burst:
         return newburst
 
     # Returns the azimuth time and the satellite position for the given time that are closest to the given geocentric position
-    def azimuth_time_from_geocentric(self, target: np.array):
+    def azimuth_time_from_geocentric_single(self, target):
         """
         Finds the time within [time_min, time_max] that minimizes the distance
         between the target position and the orbit's position.
@@ -89,6 +108,122 @@ class Burst:
         else:
             return None
 
+    def azimuth_time_from_geocentric_singletask(self, target):
+        """
+        Finds the time within [time_min, time_max] that minimizes the distance
+        between the target position and the orbit's position.
+
+        Args:
+            target: Target coordinates as a tuple of 3 ndarrays (x, y, z), each of shape (m, n).
+
+        Returns:
+            np.ndarray: A 2D array of optimal times, one for each (x, y, z) tuple in the input grids.
+                        Returns None if the optimization fails for any coordinate.
+        """
+
+        if not hasattr(target[0], '__len__') or len(target[0]) < 100:
+            return self.azimuth_time_from_geocentric_single(target)
+
+        # Unpack the target coordinates
+        x_grid, y_grid, z_grid = target
+
+        # Ensure the input grids have the same shape
+        if x_grid.shape != y_grid.shape or x_grid.shape != z_grid.shape:
+            raise ValueError("Input grids (x, y, z) must have the same shape.")
+
+        # Get the time bounds and tolerance
+        time_min = self.orbit.times[0]
+        time_max = self.orbit.times[-1]
+        time_tol = 1e-11
+
+        # Initialize the output grid for optimal times
+        optimal_times = np.zeros_like(x_grid, dtype=float)
+
+        # Iterate over each (x, y, z) tuple in the grids
+        for i in range(x_grid.shape[0]):
+            print(f'{i} / {x_grid.shape[0]}')
+
+            for j in range(x_grid.shape[1]):
+                # Target position as a 1D array
+                target_pos = np.array([x_grid[i, j], y_grid[i, j], z_grid[i, j]])
+
+                # Define the objective function for this target
+                def objective(time):
+                    orbit_pos = self.orbit.interpolate_position(time)
+                    return np.sum((orbit_pos - target_pos) ** 2)
+
+                # Perform the optimization
+                result = minimize_scalar(
+                    objective,
+                    bounds=(time_min, time_max),
+                    method='bounded',
+                    options={'xatol': time_tol}
+                )
+
+                # Store the result if successful
+                if result.success:
+                    optimal_times[i, j] = result.x
+                else:
+                    # If optimization fails, return None for the entire grid
+                    return None
+
+        return optimal_times
+
+    def azimuth_time_from_geocentric(self, target):
+        """
+        Finds the time within [time_min, time_max] that minimizes the distance
+        between the target position and the orbit's position.
+
+        Args:
+            target: Target coordinates as a tuple of 3 ndarrays (x, y, z), each of shape (m, n).
+
+        Returns:
+            np.ndarray: A 2D array of optimal times, one for each (x, y, z) tuple in the input grids.
+                        Returns None if the optimization fails for any coordinate.
+        """
+        if not hasattr(target[0], '__len__') or len(target[0]) < 100:
+            return self.azimuth_time_from_geocentric_single(target)
+
+        # Unpack the target coordinates
+        x_grid, y_grid, z_grid = target
+
+        # Validate input grids
+        if x_grid.shape != y_grid.shape or x_grid.shape != z_grid.shape:
+            raise ValueError("Input grids (x, y, z) must have the same shape.")
+
+        # Extract time bounds and tolerance
+        time_min = self.orbit.times[0]
+        time_max = self.orbit.times[-1]
+        time_tol = 1e-11
+
+        # Flatten the grids for parallel processing
+        x_flat = x_grid.ravel()
+        y_flat = y_grid.ravel()
+        z_flat = z_grid.ravel()
+        total_points = len(x_flat)
+
+
+        args_list = []
+        for i in range(total_points):
+            target_pos = np.array([x_flat[i], y_flat[i], z_flat[i]])
+            args_list.append((target_pos, self.orbit._spline_x, self.orbit._spline_y, self.orbit._spline_z, time_min, time_max, time_tol))
+
+        target_p, splx, sply, splz, time_min, time_max, time_tol = args_list[0]
+        # Parallelize using Pool
+        with Pool() as pool:
+            # Map indices to the worker function
+            optimal_times_flat = pool.map(_worker, args_list)
+
+        # Reshape the results into a 2D grid
+        optimal_times = np.array(optimal_times_flat).reshape(x_grid.shape)
+
+        # Check for failures (NaNs)
+        if np.isnan(optimal_times).any():
+            return None
+
+        return optimal_times
+
+
     def range_time_to_pixel(self, range_time):
         return (range_time - self.range_time_to_first_pixel) / self.column_spacing
 
@@ -102,11 +237,15 @@ class Burst:
         return self.first_azimuth_time + pixel * self.row_spacing
 
     # Returns the pixel possition for a given geocentric coordinate
-    def pixel_from_geocentric(self, geocentric: np.array):
-        az_time = self.azimuth_time_from_geocentric(geocentric)
+    def pixel_from_geocentric(self, geocentric, allow_parallel=True):
+        if allow_parallel:
+            az_time = self.azimuth_time_from_geocentric(geocentric)
+        else:
+            az_time = self.azimuth_time_from_geocentric_singletask(geocentric)
+
         if az_time is None: return None
         satpos = self.orbit.interpolate_position(az_time)
-        distance = np.linalg.norm(geocentric - satpos)
+        distance = np.linalg.norm(geocentric - satpos, axis=0)
         rg_time = distance / c
         x = self.range_time_to_pixel(rg_time)
         y = self.azimuth_time_to_pixel(az_time)

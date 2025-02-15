@@ -72,7 +72,7 @@ class Slc:
         return ""
 
 
-def fromTSX(xml_path: str, swath_id: int) -> Slc:
+def fromTSX(xml_path: str, swath_id: int = 0) -> Slc:
     slc = Slc()
     pol_file_list = getPolCosFileNamesFromTsx(xml_path)
     slc.metadata = metadata.fromTSX(xml_path, pol_file_list[swath_id][1])

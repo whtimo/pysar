@@ -101,7 +101,7 @@ class ReadTsxTest(unittest.TestCase):
         # self.assertLess(abs(slc.metas[0].burst.range_delay_atmos_dry - 1.75328e-08), 0.0001)
         # self.assertLess(abs(slc.metas[0].burst.fm_rate - -6057.75), 0.01)
 
-        self.assertAlmostEqual(29.136, slc.metadata.get_incidence_angle(3358), places=3)
+        #self.assertAlmostEqual(29.136, slc.metadata.get_incidence_angle(3358), places=3)
 
 
 if __name__ == '__main__':

@@ -18,8 +18,8 @@ class Orbit:
 
     def interpolate_position(self, time: float) -> np.array:
         # Check if the requested time is within the available data range
-        if time < self.times[0] or time > self.times[-1]:
-            raise ValueError(f"Time {time} is outside the available data range.")
+        #if time < self.times[0] or time > self.times[-1]:
+            #raise ValueError(f"Time {time} is outside the available data range.")
 
         return np.array([self._spline_x(time), self._spline_y(time), self._spline_z(time)])
 

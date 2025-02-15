@@ -31,8 +31,8 @@ class MetaData:
         # These are not necessary
         self._radar_frequency = None
 
-    def pixel_from_geocentric(self, geocentric: np.array):
-        return self._burst.pixel_from_geocentric(geocentric)
+    def pixel_from_geocentric(self, geocentric: np.array, allow_parallel = True) -> np.array:
+        return self._burst.pixel_from_geocentric(geocentric, allow_parallel=allow_parallel)
 
     def is_valid(self, x, y, winx=0, winy=0):
         return winx <= x < self.number_columns - winx and winy <= y < self.number_rows - winy
