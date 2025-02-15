@@ -40,11 +40,11 @@ class CplFloatSlcData(islcdata.ISlcData):
     def multilook(self, multilook_range=1, multilook_azimuth=1):
         data = self.read()
 
-        while data.shape[0] % multilook_azimuth != 0:
-            data = np.vstack((data, data[-1,:]))
+        if data.shape[0] % multilook_azimuth != 0:
+            data = data[0:-(data.shape[0] % multilook_azimuth),:]
 
-        while data.shape[1] % multilook_range != 0:
-            data = np.hstack((data, data[:,-1]))
+        if data.shape[1] % multilook_range != 0:
+            data = data[:,0:-(data.shape[1] % multilook_range)]
 
         # Reshape the array into blocks of size y (rows) and x (columns)
         reshaped = data.reshape(data.shape[0] // multilook_azimuth, multilook_azimuth, data.shape[1] // multilook_range, multilook_range)
