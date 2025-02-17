@@ -121,7 +121,7 @@ class Burst:
                         Returns None if the optimization fails for any coordinate.
         """
 
-        if not hasattr(target[0], '__len__') or len(target[0]) < 100:
+        if not hasattr(target[0], '__len__'):
             return self.azimuth_time_from_geocentric_single(target)
 
         # Unpack the target coordinates
@@ -182,7 +182,7 @@ class Burst:
                         Returns None if the optimization fails for any coordinate.
         """
         if not hasattr(target[0], '__len__') or len(target[0]) < 100:
-            return self.azimuth_time_from_geocentric_single(target)
+            return self.azimuth_time_from_geocentric_singletask(target)
 
         # Unpack the target coordinates
         x_grid, y_grid, z_grid = target
