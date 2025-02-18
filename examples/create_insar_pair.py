@@ -3,9 +3,9 @@ from pysar.sar import slc
 
 if __name__ == "__main__":
 
-    filename_master = '/Users/timo/Documents/WuhanEast/dims_op_oc_dfd2_675921665_1/TSX-1.SAR.L1B/TDX1_SAR__SSC______SM_S_SRA_20180724T101928_20180724T101938/TDX1_SAR__SSC______SM_S_SRA_20180724T101928_20180724T101938.xml'
-    filename_slave = '/Users/timo/Documents/WuhanEast/dims_op_oc_dfd2_675921665_2/TSX-1.SAR.L1B/TDX1_SAR__SSC______SM_S_SRA_20180826T101930_20180826T101940/TDX1_SAR__SSC______SM_S_SRA_20180826T101930_20180826T101940.xml'
-    filepath_out = '/Users/timo/Documents/WuhanEast/pysar/'
+    filename_master = '/home/timo/Data/pysar_test/data/dims_op_oc_dfd2_369776275_1/TSX-1.SAR.L1B/TSX1_SAR__SSC______HS_S_SRA_20100222T134945_20100222T134946/TSX1_SAR__SSC______HS_S_SRA_20100222T134945_20100222T134946.xml'
+    filename_slave = '/home/timo/Data/pysar_test/data/dims_op_oc_dfd2_369776275_1/TSX-1.SAR.L1B/TSX1_SAR__SSC______HS_S_SRA_20100305T134945_20100305T134946/TSX1_SAR__SSC______HS_S_SRA_20100305T134945_20100305T134946.xml'
+    filepath_out = '/home/timo/Data/pysar_test'
     slc_master = slc.fromTSX(filename_master, 0)
     slc_slave = slc.fromTSX(filename_slave, 0)
 

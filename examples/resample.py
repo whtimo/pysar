@@ -4,9 +4,9 @@ import pandas as pd
 
 if __name__ == "__main__":
 
-    file_pair = '/Users/timo/Documents/WuhanEast/pysar/TDX-1_0_2018-07-24__TDX-1_2018-08-26.pysar.pair.xml'
-    shifts_file = '/Users/timo/Documents/WuhanEast/pysar/shifts.csv'
-    output_path = '/Users/timo/Documents/WuhanEast/pysar'
+    file_pair = '/home/timo/Data/pysar_test/TSX-1_0_2010-02-22__TSX-1_2010-03-05.pysar.pair.xml'
+    shifts_file = '/home/timo/Data/pysar_test/shifts.csv'
+    output_path = '/home/timo/Data/pysar_test'
 
     pair = insar_pair.InSarPair(file_pair)
     shifts = pd.read_csv(shifts_file)

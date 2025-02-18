@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    file_pair = '/Users/timo/Documents/WuhanEast/pysar/TDX-1_0_2018-07-24__TDX-1_2018-08-26.pysar.resampled.xml'
-    output_path = '/Users/timo/Documents/WuhanEast/pysar'
+    file_pair = '/home/timo/Data/pysar_test/TSX-1_0_2010-02-22__TSX-1_2010-03-05.pysar.resampled.xml'
+    output_path = '/home/timo/Data/pysar_test/'
 
     pair = resampled_pair.ResampledPair(file_pair)
     phase_model, poly = flat_interferogram.get_flat_phase_model(pair)
