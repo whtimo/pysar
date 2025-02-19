@@ -108,7 +108,7 @@ class Burst:
         else:
             return None
 
-    def azimuth_time_from_geocentric_singletask(self, target):
+    def azimuth_time_from_geocentric_singletask_old(self, target):
         """
         Finds the time within [time_min, time_max] that minimizes the distance
         between the target position and the orbit's position.
@@ -168,6 +168,71 @@ class Burst:
                     return None
 
         return optimal_times
+
+    def azimuth_time_from_geocentric_singletask(self, target):
+        """
+        Finds the time within [time_min, time_max] that minimizes the distance
+        between the target position and the orbit's position.
+
+        Args:
+            target: Target coordinates as a tuple of 3 ndarrays (x, y, z), each of shape (m, n).
+
+        Returns:
+            np.ndarray: A 2D array of optimal times, one for each (x, y, z) tuple in the input grids.
+                        Returns None if the optimization fails for any coordinate.
+        """
+
+        if not hasattr(target[0], '__len__'):
+            return self.azimuth_time_from_geocentric_single(target)
+
+        # Unpack the target coordinates
+        x_grid, y_grid, z_grid = target
+
+        x_grid = np.atleast_2d(x_grid)
+        y_grid = np.atleast_2d(y_grid)
+        z_grid = np.atleast_2d(z_grid)
+
+        # Ensure the input grids have the same shape
+        if x_grid.shape != y_grid.shape or x_grid.shape != z_grid.shape:
+            raise ValueError("Input grids (x, y, z) must have the same shape.")
+
+        # Get the time bounds and tolerance
+        time_min = self.orbit.times[0]
+        time_max = self.orbit.times[-1]
+        time_tol = 1e-11
+
+        # Initialize the output grid for optimal times
+        optimal_times = np.zeros_like(x_grid, dtype=float)
+
+        # Iterate over each (x, y, z) tuple in the grids
+        for i in range(x_grid.shape[0]):
+            print(f'{i} / {x_grid.shape[0]}')
+
+            for j in range(x_grid.shape[1]):
+                # Target position as a 1D array
+                target_pos = np.array([x_grid[i, j], y_grid[i, j], z_grid[i, j]])
+
+                # Define the objective function for this target
+                def objective(time):
+                    orbit_pos = self.orbit.interpolate_position(time)
+                    return np.sum((orbit_pos - target_pos) ** 2)
+
+                # Perform the optimization
+                result = minimize_scalar(
+                    objective,
+                    bounds=(time_min, time_max),
+                    method='bounded',
+                    options={'xatol': time_tol}
+                )
+
+                # Store the result if successful
+                if result.success:
+                    optimal_times[i, j] = result.x
+                else:
+                    # If optimization fails, return None for the entire grid
+                    return None
+
+        return optimal_times.squeeze(axis=0)
 
     def azimuth_time_from_geocentric(self, target):
         """
