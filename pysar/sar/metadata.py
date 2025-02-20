@@ -145,7 +145,12 @@ def fromTSX(xml_path: str, polarization: str) -> MetaData:
     meta.polarization = polarization
     tree = ET.parse(xml_path)
     root = tree.getroot()
-    meta._burst = burst.fromTSX(root)
+
+    georef_path = pathlib.Path(xml_path).parent / "ANNOTATION" / "GEOREF.xml"
+    if not georef_path.exists():
+        georef_path = None
+
+    meta._burst = burst.fromTSX(root, georef_path)
     meta._orbit = meta._burst.orbit
     meta.acquisition_date = meta._burst.first_azimuth_datetime.date()
     meta.number_rows = meta._burst.number_rows

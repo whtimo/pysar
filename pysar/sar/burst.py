@@ -37,6 +37,8 @@ class Burst:
         self.number_columns = None
         self.first_azimuth_datetime = None
         self.footprint = None
+        self.azimuth_timing_shift = 0
+        self.range_delay = 0
 
         # These are not necessary
         self._prf = None
@@ -290,16 +292,19 @@ class Burst:
 
 
     def range_time_to_pixel(self, range_time):
-        return (range_time - self.range_time_to_first_pixel) / self.column_spacing
+        return (range_time + self.range_delay - self.range_time_to_first_pixel) / self.column_spacing
 
     def pixel_to_range_time(self, pixel):
-        return self.range_time_to_first_pixel + pixel * self.column_spacing
+        return (self.range_time_to_first_pixel +
+                pixel * self.column_spacing) - self.range_delay
 
     def azimuth_time_to_pixel(self, azimuth_time):
-        return (azimuth_time - self.first_azimuth_time) / self.row_spacing
+        azitime = azimuth_time + self.azimuth_timing_shift
+        return (azitime - self.first_azimuth_time) / self.row_spacing
 
     def pixel_to_azimuth_time(self, pixel):
-        return self.first_azimuth_time + pixel * self.row_spacing
+        azitime = self.first_azimuth_time + pixel * self.row_spacing
+        return azitime - self.azimuth_timing_shift
 
     # Returns the pixel possition for a given geocentric coordinate
     def pixel_from_geocentric(self, geocentric, allow_parallel=True):
@@ -355,11 +360,16 @@ class Burst:
             azimuth_datetime_elem = ET.SubElement(root, "FirstAzimuthLineDateTime")
             azimuth_datetime_elem.text = self.first_azimuth_datetime.isoformat()
 
+        azimuth_delay_elem = ET.SubElement(root, "AzimuthTimingShift")
+        azimuth_delay_elem.text = str(self.azimuth_timing_shift)
+
+        range_delay_elem = ET.SubElement(root, "RangeAtmosphericDelay")
+        range_delay_elem.text = str(self.range_delay)
 
         footprint_elem = ET.SubElement(root, "Footprint")
         self.footprint.toXml(footprint_elem)
 
-def fromTSX(root: ET.Element) -> Burst:
+def fromTSX(root: ET.Element, georef_path:str = None) -> Burst:
     burst = Burst()
 
     # Find the <sceneInfo> tag
@@ -392,6 +402,26 @@ def fromTSX(root: ET.Element) -> Burst:
     burst.orbit = orbit.fromTSX(root)
     burst.first_azimuth_time = burst.orbit.seconds_from_reference_time(burst.first_azimuth_datetime)
     burst.footprint = footprint.fromTSX(root)
+
+    if georef_path is not None:
+        georef_tree = ET.parse(georef_path)
+        geo_reference = georef_tree.getroot()
+
+        signal_propagation_effects = geo_reference.find('signalPropagationEffects')
+
+        iono = 0
+        atmo = 0
+        for range_delay in signal_propagation_effects.findall('rangeDelay'):
+            source = range_delay.get('source')
+            if source == "IONO":
+                iono = float(range_delay.find('coefficient').text)
+            elif source == "ATMOS":
+                atmo = float(range_delay.find('coefficient').text)
+
+        burst.range_delay = (iono + atmo) / 2.0
+        azimuth_shift = signal_propagation_effects.find('azimuthShift')
+        burst.azimuth_timing_shift = float(azimuth_shift.find('coefficient').text)
+
     return burst
 
 
@@ -435,6 +465,13 @@ def fromXml(root : ET.Element, orbit) -> Burst:
     if azimuth_datetime_elem is not None and azimuth_datetime_elem.text:
         burst.first_azimuth_datetime = datetime.fromisoformat(azimuth_datetime_elem.text)
 
+    azimuth_delay_elem = root.find("AzimuthTimingShift")
+    if azimuth_delay_elem is not None:
+        burst.azimuth_delay = float(azimuth_delay_elem.text)
+
+    range_delay_elem = root.find("RangeAtmosphericDelay")
+    if range_delay_elem is not None:
+        burst.range_delay = float(range_delay_elem.text)
 
     return burst
 
@@ -479,6 +516,17 @@ def fromBzarXml(root: ET.Element, orbit, type: str, footprint = None) -> Burst:
     azimuth_datetime_elem = root.find("AzimuthTime")
     if azimuth_datetime_elem is not None and azimuth_datetime_elem.text:
         burst.first_azimuth_datetime = datetime.fromisoformat(azimuth_datetime_elem.text)
+
+    azimuth_delay_elem = root.find("AzimuthTimingShift")
+    if azimuth_delay_elem is not None:
+        burst.azimuth_delay = float(azimuth_delay_elem.text)
+
+    range_iono_delay_elem = root.find("TsxMetaRangeDelayIonosphere")
+    range_tropo_delay_elem = root.find("TsxMetaRangeDelayTroposphere")
+    if range_iono_delay_elem is not None and range_tropo_delay_elem is not None:
+        iono_delay = float(range_tropo_delay_elem.text)
+        tropo_delay = float(range_tropo_delay_elem.text)
+        burst.range_delay = (iono_delay + tropo_delay) / 2.0
 
     return burst
 

@@ -54,11 +54,11 @@ def fft_subpixel_peak(window, upsample_factor=4):
     # Find integer peak
     i_peak, j_peak = np.unravel_index(np.argmax(window), window.shape)
 
-    # Extract a 3x3 region around the peak
-    if (i_peak < 1 or i_peak >= window.shape[0] - 1 or
-            j_peak < 1 or j_peak >= window.shape[1] - 1):
+    # Extract a 7x7 region around the peak
+    if (i_peak < 3 or i_peak >= window.shape[0] - 3 or
+            j_peak < 3 or j_peak >= window.shape[1] - 3):
         return (i_peak + 0.0, j_peak + 0.0)
-    small_window = window[i_peak - 1:i_peak + 2, j_peak - 1:j_peak + 2]
+    small_window = window[i_peak - 3:i_peak + 4, j_peak - 3:j_peak + 4]
 
     # Upsample using FFT
     n_rows, n_cols = small_window.shape
@@ -77,8 +77,8 @@ def fft_subpixel_peak(window, upsample_factor=4):
     i_peak_up, j_peak_up = np.unravel_index(np.argmax(upsampled_mag), upsampled_mag.shape)
 
     # Convert to sub-pixel offset in the original window
-    delta_i = (i_peak_up / upsample_factor) - 1  # Offset from 3x3 center
-    delta_j = (j_peak_up / upsample_factor) - 1
+    delta_i = (i_peak_up / upsample_factor) - 3 # Offset from 3x3 center
+    delta_j = (j_peak_up / upsample_factor) - 3
     return (i_peak + delta_i, j_peak + delta_j)
 
 if __name__ == "__main__":
