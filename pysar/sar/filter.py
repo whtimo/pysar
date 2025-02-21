@@ -402,7 +402,7 @@ def bilateral_filter(image, sigma_spatial=5, sigma_intensity=50):
 
 
 
-def non_local_means_filter(image, patch_size=5, search_window_size=11, h=10):
+def non_local_means_filter(image, patch_size=7, search_window_size=21, h=10):
     """
     Apply the Non-Local Means (NLM) Filter to a SAR image to reduce speckle noise.
 
@@ -444,17 +444,21 @@ def non_local_means_filter(image, patch_size=5, search_window_size=11, h=10):
                     # Extract the target patch
                     target_patch = padded_image[x:x + patch_size, y:y + patch_size]
 
-                    # Compute the Euclidean distance between patches
-                    distance = np.sum((reference_patch - target_patch)**2)
+                    if target_patch.shape == reference_patch.shape:
+                        # Compute the Euclidean distance between patches
+                        distance = np.sum((reference_patch - target_patch)**2)
 
-                    # Compute the weight
-                    weight = np.exp(-distance / (h**2))
+                        # Compute the weight
+                        weight = np.exp(-distance / (h**2))
 
-                    # Update the weighted sum and weight sum
-                    weighted_sum += weight * padded_image[x + patch_radius, y + patch_radius]
-                    weight_sum += weight
+                        # Update the weighted sum and weight sum
+                        weighted_sum += weight * padded_image[x + patch_radius, y + patch_radius]
+                        weight_sum += weight
 
             # Compute the filtered pixel value
-            filtered_image[i, j] = weighted_sum / weight_sum
+            if weight_sum > 0:
+                filtered_image[i, j] = weighted_sum / weight_sum
+            else:
+                filtered_image[i, j] = 0.0
 
     return filtered_image
