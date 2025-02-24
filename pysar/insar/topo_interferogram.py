@@ -1,4 +1,4 @@
-from scipy.interpolate import NearestNDInterpolator
+from scipy.interpolate import LinearNDInterpolator
 
 from pysar import footprint, coordinates
 from pysar.insar import resampled_pair, baseline
@@ -197,7 +197,7 @@ def interpolate_phase_residuals_natural_neighbor(samples, lines, values, grid_si
     """
 
     # Create interpolator
-    interpolator = NearestNDInterpolator(list(zip(samples, lines)), values)
+    interpolator = LinearNDInterpolator(list(zip(samples, lines)), values)
 
     # Create regular grid
     grid_lines, grid_samples = np.mgrid[0:grid_size[0], 0:grid_size[1]]
