@@ -4,7 +4,7 @@ from pysar import coordinates, footprint
 from pysar.sar import metadata
 import random
 from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import RANSACRegressor, LinearRegression
+from sklearn.linear_model import RANSACRegressor, LinearRegression, HuberRegressor, TheilSenRegressor
 from sklearn.pipeline import make_pipeline
 import pandas as pd
 
@@ -76,7 +76,7 @@ def subpixel_shift(master: np.ndarray, slave: np.ndarray, search_pix: int, searc
 
     return max_shifts, max_corr
 
-def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaData, coarse_shift_x: int, coarse_shift_y: int, master_data: np.ndarray, slave_data: np.ndarray, window_size_x:int = 128, window_size_y:int = 128, search_size_x:int = 16, search_size_y:int = 16, corr_threshold: float = 0.3, average_height: float = 0, points=1600, upsample_factor=16, output = None) -> pd.DataFrame:
+def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaData, coarse_shift_x: int, coarse_shift_y: int, master_data: np.ndarray, slave_data: np.ndarray, window_size_x:int = 128, window_size_y:int = 128, average_height: float = 0, points=1600, output = None) -> pd.DataFrame:
 
     pnts = get_random_points(points*2, master_meta.footprint, average_height)
     win_radius_x = (window_size_x - 1) // 2
@@ -88,7 +88,7 @@ def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaDat
         geocentric = coordinates.geodetic_to_geocentric(lat, lon, h)
         m_x, m_y = master_meta.pixel_from_geocentric(geocentric)
         m_x, m_y = int(m_x), int(m_y)
-        if master_meta.is_valid(m_x, m_y, window_size_x + search_size_x, window_size_y + search_size_y):
+        if master_meta.is_valid(m_x, m_y, window_size_x, window_size_y):
             s_x, s_y = slave_meta.pixel_from_geocentric(geocentric)
             s_x, s_y = int(s_x), int(s_y)
             if slave_meta.is_valid(s_x, s_y, window_size_x, window_size_y):
@@ -116,10 +116,11 @@ def subpixel_shifts(master_meta: metadata.MetaData, slave_meta: metadata.MetaDat
 
                 shift, error, diffphase = phase_cross_correlation(mas_subset, sl_subset, upsample_factor=100)
                 #print(f'Shift: {shift} - Error: {error} - Diffphase: {diffphase}')
-
-                result.loc[len(result)] = [m_x, m_y, coarse_shift_x-shift[1], coarse_shift_y-shift[0]]
+                c_shift_x = s_x - m_x
+                c_shift_y = s_y - m_y
+                result.loc[len(result)] = [m_x, m_y, c_shift_x-shift[1], c_shift_y-shift[0]]
                 if output is not None:
-                    output('Estimating Subpixel Shifts:', len(result), points, f' - {coarse_shift_x-shift[0]}, {coarse_shift_y-shift[1]}')
+                    output('Estimating Subpixel Shifts:', len(result), points, f' - {c_shift_x-shift[1]}, {c_shift_y-shift[0]}')
                 if len(result) >= points:
                     break
 
@@ -131,22 +132,22 @@ def parameter_estimation(shifts, degree:int = 2):
 
     print(f'Mean: {np.mean(coords[:,2])}, {np.mean(coords[:,3])}')
 
-    dx_mean = np.mean(coords[:,2])
-    dx_std = np.std(coords[:,2])
-    dy_mean = np.mean(coords[:,3])
-    dy_std = np.std(coords[:,3])
-
-    # Define the range for dx and dy
-    dx_range = (dx_mean - dx_std, dx_mean + dx_std)
-    dy_range = (dy_mean - dy_std, dy_mean + dy_std)
-
-    # Filter the rows where shiftX is within dx_range and shiftY is within dy_range
-    filtered_coords = coords[
-        (coords[:, 2] >= dx_range[0]) & (coords[:, 2] <= dx_range[1]) &
-        (coords[:, 3] >= dy_range[0]) & (coords[:, 3] <= dy_range[1])
-        ]
-
-    print(f'Filtered Mean: {np.mean(filtered_coords[:, 2])}, {np.mean(filtered_coords[:, 3])}')
+    # dx_mean = np.mean(coords[:,2])
+    # dx_std = np.std(coords[:,2])
+    # dy_mean = np.mean(coords[:,3])
+    # dy_std = np.std(coords[:,3])
+    #
+    # # Define the range for dx and dy
+    # dx_range = (dx_mean - dx_std, dx_mean + dx_std)
+    # dy_range = (dy_mean - dy_std, dy_mean + dy_std)
+    #
+    # # Filter the rows where shiftX is within dx_range and shiftY is within dy_range
+    # filtered_coords = coords[
+    #     (coords[:, 2] >= dx_range[0]) & (coords[:, 2] <= dx_range[1]) &
+    #     (coords[:, 3] >= dy_range[0]) & (coords[:, 3] <= dy_range[1])
+    #     ]
+    #
+    # print(f'Filtered Mean: {np.mean(filtered_coords[:, 2])}, {np.mean(filtered_coords[:, 3])}')
 
     ransac_pipeline_dx = make_pipeline(
         PolynomialFeatures(degree),
@@ -165,8 +166,76 @@ def parameter_estimation(shifts, degree:int = 2):
         )
     )
 
+    ransac_pipeline_dx = make_pipeline(
+        PolynomialFeatures(degree),
+        RANSACRegressor(
+            estimator=LinearRegression(),
+            residual_threshold=0.001,  # Tune based on noise level
+            max_trials=10000
+        )
+    )
+
+
     # Fit models
-    ransac_pipeline_dx.fit(filtered_coords[:,0:2], filtered_coords[:,2])
-    ransac_pipeline_dy.fit(filtered_coords[:,0:2], filtered_coords[:,3])
+    ransac_pipeline_dx.fit(coords[:,0:2], coords[:,2])
+    ransac_pipeline_dy.fit(coords[:,0:2], coords[:,3])
+
+
+
+    return ransac_pipeline_dx, ransac_pipeline_dy
+
+
+def parameter_estimation_test(shifts, degree: int = 2):
+    coords = shifts[['masterX', 'masterY', 'shiftX', 'shiftY']].to_numpy()
+
+    cont = True
+
+    while cont:
+        print(f'Mean: {np.mean(coords[:, 2])}, {np.mean(coords[:, 3])}')
+
+        # ransac_pipeline_dx = make_pipeline(
+        #     PolynomialFeatures(degree),
+        #     RANSACRegressor(
+        #         estimator=LinearRegression(),
+        #         residual_threshold=0.001,  # Tune based on noise level
+        #         max_trials=10000
+        #     )
+        # )
+        # ransac_pipeline_dy = make_pipeline(
+        #     PolynomialFeatures(degree),
+        #     RANSACRegressor(
+        #         estimator=LinearRegression(),
+        #         residual_threshold=0.001,
+        #         max_trials=10000
+        #     )
+        # )
+
+        ransac_pipeline_dx = make_pipeline(
+            PolynomialFeatures(degree),
+            TheilSenRegressor()
+        )
+        ransac_pipeline_dy = make_pipeline(
+            PolynomialFeatures(degree),
+            TheilSenRegressor()
+
+        )
+
+        # Fit models
+        ransac_pipeline_dx.fit(coords[:, 0:2], coords[:, 2])
+        ransac_pipeline_dy.fit(coords[:, 0:2], coords[:, 3])
+
+        sh_x = ransac_pipeline_dx.predict(coords[:, 0:2])
+        sh_y = ransac_pipeline_dy.predict(coords[:, 0:2])
+        dsx = np.abs(sh_x - coords[:, 2])
+        dsy = np.abs(sh_y - coords[:, 3])
+        dist = np.sqrt(dsx**2 + dsy**2)
+        ix = np.argmin(dist)
+        val = dist[ix]
+        if val < 0.01:
+            cont = False
+            print(f'Finished with max dist: {val}. Using {len(coords)} points.')
+        else:
+            coords = np.delete(coords, ix, axis=0)
+            print(f'Max dist: {val}. Now using {len(coords)} points.')
 
     return ransac_pipeline_dx, ransac_pipeline_dy
