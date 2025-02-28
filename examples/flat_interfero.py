@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    file_pair = '/home/timo/Data/pysar_test/TSX-1_0_2010-02-22__TSX-1_2010-03-05.pysar.resampled.xml'
-    output_path = '/home/timo/Data/pysar_test/'
+    file_pair = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_8_2010-08-28__TSX-1_2010-06-23.pysar.resampled.xml'
+    output_path = '/home/timo/Data/pysar_test/lasvegas_desc'
 
     pair = resampled_pair.ResampledPair(file_pair)
     phase_model, poly = flat_interferogram.get_flat_phase_model(pair)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     I = np.exp(1j * pred_phase)  # Example complex interferogram
     pred_wrapped_phase = np.angle(I)
 
-    fig, ax1 = plt.subplots(1, 1, figsize=(6, 6))
+    fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
 
     # Plot the estimated dx shifts
     im1 = ax1.imshow(pred_wrapped_phase, extent=[0, pair.master.metadata.number_columns, 0, pair.master.metadata.number_rows], origin='lower', cmap='hsv')
