@@ -4,16 +4,18 @@ import pandas as pd
 
 if __name__ == "__main__":
 
-    file_pair = '/home/timo/Data/pysar_test/TSX-1_0_2010-02-22__TSX-1_2010-03-05.pysar.pair.xml'
-    shifts_file = '/home/timo/Data/pysar_test/shifts.csv'
-    output_path = '/home/timo/Data/pysar_test'
+    file_pair = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_0_2010-08-28__TSX-1_2010-06-23.pysar.pair.xml'
+    shifts_file = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_2010-06-23-5_shifts.csv'
+    output_path = '/home/timo/Data/pysar_test/lasvegas_desc/pysar'
 
     pair = insar_pair.InSarPair(file_pair)
     shifts = pd.read_csv(shifts_file)
 
     print(f'Baseline: {pair.perpendicular_baseline} m Perpendicular Baseline and a Temporal Baseline of {pair.temporal_baseline} days')
     print(f'Shifts mean: {shifts['shiftX'].to_numpy().mean().round(2)}, {shifts['shiftY'].to_numpy().mean().round(2)}')
-    est_dx, est_dy = coregistration.parameter_estimation(shifts, 1)
+
+
+    est_dx, est_dy = coregistration.parameter_estimation(shifts, 2)
 
     print('Read data')
     master = pair.master.slcdata.read()

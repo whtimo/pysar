@@ -5,14 +5,14 @@ import numpy as np
 
 if __name__ == "__main__":
 
-    file_pair = '/home/timo/Data/pysar_test/TSX-1_0_2010-02-22__TSX-1_2010-03-05.pysar.pair.xml'
-    shifts_file = '/home/timo/Data/pysar_test/shifts.csv'
+    file_pair = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_0_2010-08-28__TSX-1_2010-06-23.pysar.pair.xml'
+    shifts_file = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_2010-06-23-5_shifts.csv'
 
     pair = insar_pair.InSarPair(file_pair)
 
     print(f'Baseline calculation: {pair.perpendicular_baseline} m Perpendicular Baseline and a Temporal Baseline of {pair.temporal_baseline} days')
 
-    shifts = coregistration.subpixel_shifts(pair.master.metadata, pair.slave.metadata, int(pair.shift_x), int(pair.shift_y), pair.master.slcdata.read(), pair.slave.slcdata.read(), output=tools.output_console)
+    shifts = coregistration.subpixel_shifts(pair.master.metadata, pair.slave.metadata, int(pair.shift_x), int(pair.shift_y), pair.master.slcdata.read(), pair.slave.slcdata.read(), output=tools.output_console, points=1600)
     shifts.to_csv(shifts_file, index=True)
 
     # Create a figure with two subplots
