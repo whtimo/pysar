@@ -6,7 +6,6 @@ from scipy.ndimage import minimum_filter
 
 def process_amplitude_dispersion(
         input_tiff_path,
-        output_csv_path,
         threshold_value,
         window_size_x,
         window_size_y
@@ -18,8 +17,6 @@ def process_amplitude_dispersion(
     -----------
     input_tiff_path : str
         Path to the input TIFF file containing amplitude dispersion index
-    output_csv_path : str
-        Path where the output CSV will be saved
     threshold_value : float
         Threshold value for filtering pixels
     window_size_x : int
@@ -57,30 +54,7 @@ def process_amplitude_dispersion(
             'amplitude_dispersion': amplitude_data[rows, cols]
         })
 
-        # Save to CSV
-        results_df.to_csv(output_csv_path, index=True) #added indexing
 
         return results_df
 
 
-# Example usage:
-if __name__ == "__main__":
-    # input_path = "path/to/your/amplitude_dispersion.tif"
-    # output_path = "path/to/your/output.csv"
-    # threshold = 0.4  # Example threshold value
-    # window_x = 5  # Example window size in x direction
-    # window_y = 5  # Example window size in y direction
-
-    input_path = "/home/timo/Data/LVS1_snap/amplitude_dispersion.tif"
-    output_path = "/home/timo/Data/LVS1_snap/ps.csv"
-    threshold = 0.25
-    window_x = 3
-    window_y = 3
-
-    results = process_amplitude_dispersion(
-        input_path,
-        output_path,
-        threshold,
-        window_x,
-        window_y
-    )

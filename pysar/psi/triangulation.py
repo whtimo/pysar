@@ -2,33 +2,31 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import Delaunay
 
-# Read the input CSV file, assuming first unnamed column contains IDs
-#df = pd.read_csv('input.csv')
-df = pd.read_csv('/home/timo/Data/LVS1_snap/psc.csv')
-# Rename the unnamed first column to 'point_id'
-df = df.rename(columns={df.columns[0]: 'point_id'})
+def triangulate_psc(df):
+    # Read the input CSV file, assuming first unnamed column contains IDs
+    #df = pd.read_csv('input.csv')
 
-# Extract coordinates
-points = df[['sample', 'line']].values
+    # Rename the unnamed first column to 'point_id'
+    df = df.rename(columns={df.columns[0]: 'point_id'})
 
-# Perform Delaunay triangulation
-tri = Delaunay(points)
+    # Extract coordinates
+    points = df[['sample', 'line']].values
 
-# Create a list to store the triangulation results
-triangles = []
-for simplex in tri.simplices:
-    # Get the point IDs for each triangle
-    triangle_data = {
-        'triangle_id': len(triangles),
-        'point1_id': df['point_id'].iloc[simplex[0]],
-        'point2_id': df['point_id'].iloc[simplex[1]],
-        'point3_id': df['point_id'].iloc[simplex[2]]
-    }
-    triangles.append(triangle_data)
+    # Perform Delaunay triangulation
+    tri = Delaunay(points)
 
-# Create DataFrame with triangulation results
-results_df = pd.DataFrame(triangles)
+    # Create a list to store the triangulation results
+    triangles = []
+    for simplex in tri.simplices:
+        # Get the point IDs for each triangle
+        triangle_data = {
+            'triangle_id': len(triangles),
+            'point1_id': df['point_id'].iloc[simplex[0]],
+            'point2_id': df['point_id'].iloc[simplex[1]],
+            'point3_id': df['point_id'].iloc[simplex[2]]
+        }
+        triangles.append(triangle_data)
 
-# Save to CSV
-#results_df.to_csv('triangulation_results.csv', index=False)
-results_df.to_csv('/home/timo/Data/LVS1_snap/triangulation_results.csv', index=False)
+    # Create DataFrame with triangulation results
+    results_df = pd.DataFrame(triangles)
+    return results_df
