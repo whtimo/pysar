@@ -5,7 +5,7 @@ from rasterio.transform import Affine
 from pathlib import Path
 import logging
 from typing import Dict, Tuple, List
-from scipy.interpolate import griddata, NearestNDInterpolator, Rbf
+from scipy.interpolate import griddata, LinearNDInterpolator, Rbf
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 
@@ -143,7 +143,7 @@ def interpolate_phase_residuals_natural_neighbor(samples, lines, values, grid_si
     """
 
     # Create interpolator
-    interpolator = NearestNDInterpolator(list(zip(samples, lines)), values)
+    interpolator = LinearNDInterpolator(list(zip(samples, lines)), values)
 
     # Create regular grid
     grid_lines, grid_samples = np.mgrid[0:grid_size[0], 0:grid_size[1]]
@@ -314,44 +314,5 @@ def save_interpolated_grid(interpolated_data: np.ndarray,
         #dst.write(interpolated_data.astype(np.float32), 1)
 
 
-
-
-logger = setup_logging()
-
-master_image_width = 6000  # Timo: add fixed size not based on min/max samples from the PSCs
-master_image_height = 2700
-grid_size = (master_image_width, master_image_height)
-
-# Set paths
-input_file = Path('/home/timo/Data/LVS1_snap/ps_results_path.h5')
-output_dir = Path('/home/timo/Data/LVS1_snap/aps')
-output_dir.mkdir(exist_ok=True)
-
-# Load data
-logger.info(f"Loading data from {input_file}")
-data = load_path_parameters(input_file)
-
-# Prepare point data
-samples, lines, residuals = prepare_point_data(data['points'])
-
-# Process each epoch
-n_epochs = residuals.shape[1]
-logger.info(f"Processing {n_epochs} epochs")
-
-for epoch in range(n_epochs):
-    logger.info(f"Processing epoch {epoch + 1}/{n_epochs}")
-
-    # Get residuals for current epoch
-    epoch_residuals = residuals[:, epoch]
-
-    # Interpolate
-    interpolated_nn = interpolate_phase_residuals_natural_neighbor(lines, samples, epoch_residuals, grid_size)
-
-    # Save result
-    save_interpolated_grid(
-        interpolated_nn, output_dir, epoch
-    )
-
-logger.info("Processing completed")
 
 

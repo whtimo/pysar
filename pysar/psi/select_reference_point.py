@@ -141,8 +141,3 @@ def select_reference_point(params,
     # Return the best candidate
     return sorted_candidates[0]['point_id']
 
-
-#params = load_network_parameters('filename')
-params = load_network_parameters('/home/timo/Data/LVS1_snap/ps_results.h5')
-reference_point = select_reference_point(params, temporal_coherence_threshold=0.9, min_connections=10)
-save_reference_point(reference_point, '/home/timo/Data/LVS1_snap/ref_point.txt')

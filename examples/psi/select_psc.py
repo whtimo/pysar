@@ -6,7 +6,7 @@ import argparse
 if __name__ == "__main__":
 
     # Set up argument parsing
-    parser = argparse.ArgumentParser(description="Process amplitude dispersion and save results.")
+    parser = argparse.ArgumentParser(description="Select PSC or PS points.")
     parser.add_argument("--input_path", type=str, required=True,
                         help="Path to the input amplitude dispersion TIFF file")
     parser.add_argument("--output_path", type=str, required=True, help="Path to the output CSV file")
