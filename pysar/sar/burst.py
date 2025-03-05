@@ -234,7 +234,7 @@ class Burst:
                     # If optimization fails, return None for the entire grid
                     return None
 
-        return optimal_times.squeeze(axis=0)
+        return optimal_times #.squeeze(axis=0)
 
     def azimuth_time_from_geocentric(self, target):
         """
