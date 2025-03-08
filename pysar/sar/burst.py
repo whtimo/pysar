@@ -234,7 +234,7 @@ class Burst:
                     # If optimization fails, return None for the entire grid
                     return None
 
-        return optimal_times #.squeeze(axis=0)
+        return optimal_times.squeeze(axis=0)
 
     def azimuth_time_from_geocentric(self, target):
         """
@@ -248,7 +248,7 @@ class Burst:
             np.ndarray: A 2D array of optimal times, one for each (x, y, z) tuple in the input grids.
                         Returns None if the optimization fails for any coordinate.
         """
-        if not hasattr(target[0], '__len__') or len(target[0]) < 100:
+        if not hasattr(target[0], '__len__') or len(target[0]) < 40:
             return self.azimuth_time_from_geocentric_singletask(target)
 
         # Unpack the target coordinates
