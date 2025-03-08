@@ -5,10 +5,8 @@ import numpy as np
 
 if __name__ == "__main__":
 
-    file_pair = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_0_2010-08-28__TSX-1_2010-06-23.pysar.pair.xml'
-    shifts_file = '/home/timo/Data/pysar_test/lasvegas_desc/pysar/TSX-1_2010-06-23-9_shifts.csv'
-    #file_pair = '/home/timo/Data/pysar_test/vesuv/pysar/TDX-1_0_2024-08-17__TDX-1_2024-08-06.pysar.pair.xml'
-    #shifts_file = '/home/timo/Data/pysar_test/vesuv/pysar/TDX-1_2024-08-06_shifts.csv'
+    file_pair = ''
+    shifts_file = ''
 
     pair = insar_pair.InSarPair(file_pair)
 

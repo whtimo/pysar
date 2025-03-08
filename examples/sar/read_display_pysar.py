@@ -1,13 +1,10 @@
-# import sys
-# sys.path.extend(['/Users/timo/src/pysar'])
-
 import matplotlib.pyplot as plt
 from pysar.sar import slc
 import numpy as np
 
 if __name__ == "__main__":
 
-    filename = '/Users/timo/Documents/tsx_rapanui.pysar.xml'
+    filename = ''
     slc = slc.fromPysarXml(filename)
     data = slc.slcdata.read()
 

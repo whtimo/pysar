@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    file_name = '/home/timo/Data/pysar_test/speckle/dims_op_oc_dfd2_676017403_6/TSX-1.SAR.L1B/TDX1_SAR__SSC______SM_S_SRA_20180325T101924_20180325T101934/TDX1_SAR__SSC______SM_S_SRA_20180325T101924_20180325T101934.xml'
+    file_name = ''
 
     slc = slc.fromTSX(file_name, 0)
 

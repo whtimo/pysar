@@ -1,7 +1,5 @@
 from pysar.insar import flat_interferogram, topo_interferogram
-from pysar import coordinates
 import numpy as np
-import rasterio
 import matplotlib.pyplot as plt
 
 
@@ -9,9 +7,9 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    file_inf = '/home/timo/Data/pysar_test/TSX-1_0_2010-02-22__TSX-1_2010-03-05.pysar.flat.interfero.xml'
-    srtm_path = '/home/timo/Data/pysar_test/srtm_13_05.tif'
-    output_path = '/home/timo/Data/pysar_test'
+    file_inf = ''
+    srtm_path = ''
+    output_path = ''
 
     interfero = flat_interferogram.FlatInterferogram(file_inf)
 

@@ -94,14 +94,6 @@ class ReadTsxTest(unittest.TestCase):
 
         self.assertAlmostEqual(0.0310665821396723, slc.metadata.wavelength, places=10)
         self.assertEqual('TSX-1', slc.metadata.sensor)
-        # self.assertLess(abs(slc.metas[0].burst.total_processed_azimuth_bandwidth - 2792.47), 0.01)
-        # self.assertLess(abs(slc.metas[0].burst.total_processed_range_bandwidth - 3e+08), 1)
-        # self.assertLess(abs(slc.metas[0].burst.slant_range_resolution - 0.588498), 0.0001)
-        # self.assertLess(abs(slc.metas[0].burst.az_timing_shift - -1.1213e-05), 0.0001)
-        # self.assertLess(abs(slc.metas[0].burst.range_delay_atmos_dry - 1.75328e-08), 0.0001)
-        # self.assertLess(abs(slc.metas[0].burst.fm_rate - -6057.75), 0.01)
-
-        #self.assertAlmostEqual(29.136, slc.metadata.get_incidence_angle(3358), places=3)
 
 
 if __name__ == '__main__':

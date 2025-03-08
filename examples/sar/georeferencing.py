@@ -1,18 +1,17 @@
-from pysar.sar import metadata, slc
+from pysar.sar import slc
 from pysar import coordinates
 from pyproj import Geod
 import numpy as np
 import rasterio
-from rasterio.warp import transform
 from scipy.ndimage import map_coordinates
 from rasterio.transform import from_origin
 
 if __name__ == "__main__":
 
-    tsx_path = '/Users/timo/Documents/Rapa Nui/dims_op_oc_dfd2_693810856_1/TSX-1.SAR.L1B/TDX1_SAR__SSC______ST_S_SRA_20231005T014450_20231005T014450/TDX1_SAR__SSC______ST_S_SRA_20231005T014450_20231005T014450.xml'
-    srtm_path = '/Users/timo/Documents/srtm_15_18/srtm_15_18.tif'
+    tsx_path = ''
+    srtm_path = ''
 
-    output_geo_tiff = '/Users/timo/Documents//rapa_nui_tsx_geo.tiff'
+    output_geo_tiff = ''
 
     slc_full = slc.fromTSX(tsx_path, 0)
     slc = slc_full.multilook(1, 4)
