@@ -1,12 +1,16 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from pysar import footprint
+
+from rpcm import RPCModel
+
+from pysar import footprint, coordinates
 from pysar.sar import orbit
 import numpy as np
 from scipy.optimize import minimize_scalar
 from scipy.constants import c
 from rasterio.windows import Window
 from multiprocessing import Pool
+from rpcfit import rpc_fit
 
 # Define the objective function (outside the loop to avoid redefinition)
 def __objective(time, target_pos, splx, sply, splz):
@@ -37,14 +41,14 @@ class Burst:
         self.number_columns = None
         self.first_azimuth_datetime = None
         self.footprint = None
-        self.azimuth_timing_shift = 0
-        self.range_delay = 0
+
 
         # These are not necessary
         self._prf = None
         self._total_bandwidth_range = None
+        self._rpc = None
 
-    def subset(self, window: Window):
+    def subset(self, window: Window, create_rpc = True):
         newburst = Burst()
         newburst.orbit = self.orbit
         newburst.range_time_to_first_pixel = self.pixel_to_range_time(window.col_off)
@@ -56,9 +60,12 @@ class Burst:
         newburst.first_azimuth_datetime = self.orbit.reference_time + timedelta(seconds=newburst.first_azimuth_time)
 
         newburst.footprint = self.footprint.subset(window, self.number_columns, self.number_rows)
+        if create_rpc:
+            newburst._rpc, newburst._rpc_rmse = createRpc(newburst)
+
         return newburst
 
-    def multilook(self, multilook_range=1, multilook_azimuth=1):
+    def multilook(self, multilook_range=1, multilook_azimuth=1, create_rpc = True):
         newburst = Burst()
         newburst.orbit = self.orbit
         newburst.range_time_to_first_pixel = self.range_time_to_first_pixel
@@ -70,6 +77,8 @@ class Burst:
         newburst.first_azimuth_datetime = self.first_azimuth_datetime
 
         newburst.footprint = self.footprint
+        if create_rpc:
+            newburst._rpc, newburst._rpc_rmse = createRpc(newburst)
         return newburst
 
     # Returns the azimuth time and the satellite position for the given time that are closest to the given geocentric position
@@ -248,7 +257,7 @@ class Burst:
             np.ndarray: A 2D array of optimal times, one for each (x, y, z) tuple in the input grids.
                         Returns None if the optimization fails for any coordinate.
         """
-        if not hasattr(target[0], '__len__') or len(target[0]) < 40:
+        if not hasattr(target[0], '__len__') or len(target[0]) < 20:
             return self.azimuth_time_from_geocentric_singletask(target)
 
         # Unpack the target coordinates
@@ -292,19 +301,19 @@ class Burst:
 
 
     def range_time_to_pixel(self, range_time):
-        return (range_time + self.range_delay - self.range_time_to_first_pixel) / self.column_spacing
+        return (range_time - self.range_time_to_first_pixel) / self.column_spacing
 
     def pixel_to_range_time(self, pixel):
         return (self.range_time_to_first_pixel +
-                pixel * self.column_spacing) - self.range_delay
+                pixel * self.column_spacing)
 
     def azimuth_time_to_pixel(self, azimuth_time):
-        azitime = azimuth_time + self.azimuth_timing_shift
+        azitime = azimuth_time
         return (azitime - self.first_azimuth_time) / self.row_spacing
 
     def pixel_to_azimuth_time(self, pixel):
         azitime = self.first_azimuth_time + pixel * self.row_spacing
-        return azitime - self.azimuth_timing_shift
+        return azitime
 
     # Returns the pixel possition for a given geocentric coordinate
     def pixel_from_geocentric(self, geocentric, allow_parallel=True):
@@ -320,6 +329,12 @@ class Burst:
         x = self.range_time_to_pixel(rg_time)
         y = self.azimuth_time_to_pixel(az_time)
         return [x, y]
+
+    def pixel_from_coord_rpc(self, lon, lat, height):
+        return self._rpc.projection(lon, lat, height)
+
+    def coord_from_pixel_rpc(self, col, row, height):
+        return self._rpc.localization(col, row, height)
 
     def is_valid(self, x, y, winx = 0, winy = 0):
         return winx <= x < self.number_columns-winx and winy <= y < self.number_rows - winy
@@ -360,16 +375,98 @@ class Burst:
             azimuth_datetime_elem = ET.SubElement(root, "FirstAzimuthLineDateTime")
             azimuth_datetime_elem.text = self.first_azimuth_datetime.isoformat()
 
-        azimuth_delay_elem = ET.SubElement(root, "AzimuthTimingShift")
-        azimuth_delay_elem.text = str(self.azimuth_timing_shift)
-
-        range_delay_elem = ET.SubElement(root, "RangeAtmosphericDelay")
-        range_delay_elem.text = str(self.range_delay)
-
         footprint_elem = ET.SubElement(root, "Footprint")
         self.footprint.toXml(footprint_elem)
 
-def fromTSX(root: ET.Element, georef_path:str = None) -> Burst:
+        if self._rpc is not None:
+            rpc_dict = self._rpc.to_geotiff_dict()
+            rpc_elem = ET.SubElement(root, "RPC")
+            line_off_elem = ET.SubElement(rpc_elem, "LINE_OFF")
+            line_off_elem.text = str(rpc_dict['LINE_OFF'])
+            samp_off_elem = ET.SubElement(rpc_elem, "SAMP_OFF")
+            samp_off_elem.text = str(rpc_dict['SAMP_OFF'])
+            lat_off_elem = ET.SubElement(rpc_elem, "LAT_OFF")
+            lat_off_elem.text = str(rpc_dict['LAT_OFF'])
+            lon_off_elem = ET.SubElement(rpc_elem, "LONG_OFF")
+            lon_off_elem.text = str(rpc_dict['LONG_OFF'])
+            height_off_elem = ET.SubElement(rpc_elem, "HEIGHT_OFF")
+            height_off_elem.text = str(rpc_dict['HEIGHT_OFF'])
+            line_scale_elem = ET.SubElement(rpc_elem, "LINE_SCALE")
+            line_scale_elem.text = str(rpc_dict['LINE_SCALE'])
+            samp_scale_elem = ET.SubElement(rpc_elem, "SAMP_SCALE")
+            samp_scale_elem.text = str(rpc_dict['SAMP_SCALE'])
+            lat_scale_elem = ET.SubElement(rpc_elem, "LAT_SCALE")
+            lat_scale_elem.text = str(rpc_dict['LAT_SCALE'])
+            lon_scale_elem = ET.SubElement(rpc_elem, "LONG_SCALE")
+            lon_scale_elem.text = str(rpc_dict['LONG_SCALE'])
+            height_scale_elem = ET.SubElement(rpc_elem, "HEIGHT_SCALE")
+            height_scale_elem.text = str(rpc_dict['HEIGHT_SCALE'])
+
+            line_num_elem = ET.SubElement(rpc_elem, "LINE_NUM_COEFF")
+            line_num_str = rpc_dict["LINE_NUM_COEFF"]
+            parts = line_num_str.split(' ')
+            for i in range(1, 21):
+                coeff_elem = ET.SubElement(line_num_elem, f'COEFF_{i}')
+                coeff_elem.text = parts[i-1]
+
+            line_den_elem = ET.SubElement(rpc_elem, "LINE_DEN_COEFF")
+            line_den_str = rpc_dict["LINE_DEN_COEFF"]
+            parts = line_den_str.split(' ')
+            for i in range(1, 21):
+                coeff_elem = ET.SubElement(line_den_elem, f'COEFF_{i}')
+                coeff_elem.text = parts[i-1]
+
+            samp_num_elem = ET.SubElement(rpc_elem, "SAMP_NUM_COEFF")
+            samp_num_str = rpc_dict["SAMP_NUM_COEFF"]
+            parts = samp_num_str.split(' ')
+            for i in range(1, 21):
+                coeff_elem = ET.SubElement(samp_num_elem, f'COEFF_{i}')
+                coeff_elem.text = parts[i-1]
+
+            samp_den_elem = ET.SubElement(rpc_elem, "SAMP_DEN_COEFF")
+            samp_den_str = rpc_dict["SAMP_DEN_COEFF"]
+            parts = samp_den_str.split(' ')
+            for i in range(1, 21):
+                coeff_elem = ET.SubElement(samp_den_elem, f'COEFF_{i}')
+                coeff_elem.text = parts[i-1]
+
+
+def createRpc(burst):
+    lons = np.linspace(burst.footprint.left(), burst.footprint.right(), 80)
+    lats = np.linspace(burst.footprint.top(), burst.footprint.bottom(), 80)
+    heights = np.linspace(0, 3000, 80)
+
+    lon_grid, lat_grid, height_grid = np.meshgrid(lons, lats, heights)
+    # height_grid = np.random.uniform(low=0, high=2000, size=(400, 400))
+
+    #print('Transform into geocentric coordinates')
+    geoc = coordinates.geodetic_to_geocentric(lat_grid, lon_grid, height_grid)
+
+    #print('Calculate SAR image coordinates')
+    sar_x, sar_y = burst.pixel_from_geocentric(geoc)
+
+    locations = []
+    targets = []
+
+    for i in range(80):
+        for j in range(80):
+            for k in range(80):
+                locations.append([lon_grid[i, j, k], lat_grid[i, j, k], height_grid[i, j, k]])
+                targets.append([sar_x[i, j, k], sar_y[i, j, k]])
+
+    locs_train = np.array(locations)
+    target_train = np.array(targets)
+
+    rpc_calib = rpc_fit.calibrate_rpc(target_train, locs_train, separate=False, tol=1e-5 #tol=1e-10
+                                           , max_iter=20, method='initLcurve'
+                                           , plot=False, orientation='projloc', get_log=False)
+
+    # evaluate on training set
+    rmse_err, mae, planimetry = rpc_fit.evaluate(rpc_calib, locs_train, target_train)
+    # print('Training set :   Mean X-RMSE {:e}     Mean Y-RMSE {:e}'.format(*rmse_err))
+    return rpc_calib, rmse_err
+
+def fromTSX(root: ET.Element, create_rpc = True) -> Burst:
     burst = Burst()
 
     # Find the <sceneInfo> tag
@@ -403,25 +500,8 @@ def fromTSX(root: ET.Element, georef_path:str = None) -> Burst:
     burst.first_azimuth_time = burst.orbit.seconds_from_reference_time(burst.first_azimuth_datetime)
     burst.footprint = footprint.fromTSX(root)
 
-    if georef_path is not None:
-        georef_tree = ET.parse(georef_path)
-        geo_reference = georef_tree.getroot()
-
-        signal_propagation_effects = geo_reference.find('signalPropagationEffects')
-
-        iono = 0
-        atmo = 0
-        for range_delay in signal_propagation_effects.findall('rangeDelay'):
-            source = range_delay.get('source')
-            if source == "IONO":
-                iono = float(range_delay.find('coefficient').text)
-            elif source == "ATMOS":
-                atmo = float(range_delay.find('coefficient').text)
-
-        burst.range_delay = (iono + atmo) / 2.0
-        azimuth_shift = signal_propagation_effects.find('azimuthShift')
-        burst.azimuth_timing_shift = float(azimuth_shift.find('coefficient').text)
-
+    if create_rpc:
+        burst._rpc, burst._rpc_rmse = createRpc(burst)
     return burst
 
 
@@ -465,72 +545,65 @@ def fromXml(root : ET.Element, orbit) -> Burst:
     if azimuth_datetime_elem is not None and azimuth_datetime_elem.text:
         burst.first_azimuth_datetime = datetime.fromisoformat(azimuth_datetime_elem.text)
 
-    azimuth_delay_elem = root.find("AzimuthTimingShift")
-    if azimuth_delay_elem is not None:
-        burst.azimuth_delay = float(azimuth_delay_elem.text)
 
-    range_delay_elem = root.find("RangeAtmosphericDelay")
-    if range_delay_elem is not None:
-        burst.range_delay = float(range_delay_elem.text)
+    rpc_elem = root.find("RPC")
+    line_off_elem = rpc_elem.find("LINE_OFF")
+    d = dict([("LINE_OFF", float(line_off_elem.text))])
+    samp_off_elem = rpc_elem.find( "SAMP_OFF")
+    d['SAMP_OFF'] = float(samp_off_elem.text)
+    lat_off_elem = rpc_elem.find( "LAT_OFF")
+    d['LAT_OFF'] = float(lat_off_elem.text)
+    lon_off_elem = rpc_elem.find( "LONG_OFF")
+    d['LONG_OFF'] = float(lon_off_elem.text)
+    height_off_elem = rpc_elem.find("HEIGHT_OFF")
+    d['HEIGHT_OFF'] = float(height_off_elem.text)
 
-    return burst
+    line_scale_elem = rpc_elem.find("LINE_SCALE")
+    d['LINE_SCALE'] = float(line_scale_elem.text)
+    samp_scale_elem = rpc_elem.find("SAMP_SCALE")
+    d['SAMP_SCALE'] = float(samp_scale_elem.text)
+    lat_scale_elem = rpc_elem.find("LAT_SCALE")
+    d['LAT_SCALE'] = float(lat_scale_elem.text)
+    lon_scale_elem = rpc_elem.find("LONG_SCALE")
+    d['LONG_SCALE'] = float(lon_scale_elem.text)
+    height_scale_elem = rpc_elem.find("HEIGHT_SCALE")
+    d['HEIGHT_SCALE'] = float(height_scale_elem.text)
 
+    line_num_coeff_elem = rpc_elem.find("LINE_NUM_COEFF")
+    line_num_str = ''
+    for i in range(1,21):
+        coeff_elem = line_num_coeff_elem.find(f"COEFF_{i}")
+        line_num_str += coeff_elem.text + ' '
+    d['LINE_NUM_COEFF'] = line_num_str
 
-def fromBzarXml(root: ET.Element, orbit, type: str, footprint = None) -> Burst:
-    burst = Burst()
-    burst.orbit = orbit
+    line_den_coeff_elem = rpc_elem.find("LINE_DEN_COEFF")
+    line_den_str = ''
+    for i in range(1, 21):
+        coeff_elem = line_den_coeff_elem.find(f"COEFF_{i}")
+        line_den_str += coeff_elem.text + ' '
+    d['LINE_DEN_COEFF'] = line_den_str
 
-    # Load range_time_to_first_pixel
-    range_time_elem = root.find("OneWayTimeToFirstRangePixel")
-    if range_time_elem is not None and range_time_elem.text:
-        burst.range_time_to_first_pixel = float(range_time_elem.text)
+    samp_num_coeff_elem = rpc_elem.find("SAMP_NUM_COEFF")
+    samp_num_str = ''
+    for i in range(1,21):
+        coeff_elem = samp_num_coeff_elem.find(f"COEFF_{i}")
+        samp_num_str += coeff_elem.text + ' '
+    d['SAMP_NUM_COEFF'] = samp_num_str
 
-    # Load first_azimuth_time
-    azimuth_time_elem = root.find("TimeOfFirstAzimuthLineFocused")
-    if azimuth_time_elem is not None and azimuth_time_elem.text:
-        burst.first_azimuth_time = float(azimuth_time_elem.text)
+    samp_den_coeff_elem = rpc_elem.find("SAMP_DEN_COEFF")
+    samp_den_str = ''
+    for i in range(1, 21):
+        coeff_elem = samp_den_coeff_elem.find(f"COEFF_{i}")
+        samp_den_str += coeff_elem.text + ' '
+    d['SAMP_DEN_COEFF'] = samp_den_str
 
-    # Load column_spacing
-    column_spacing_elem = root.find("SlcImageColumnSpacing")
-    if column_spacing_elem is not None and column_spacing_elem.text:
-        burst.column_spacing = float(column_spacing_elem.text)
-        if type == 'tsx':
-            burst.column_spacing /= 2.0
+    burst._rpc = RPCModel(d)
 
-    # Load row_spacing
-    row_spacing_elem = root.find("SlcImageRowSpacing")
-    if row_spacing_elem is not None and row_spacing_elem.text:
-        burst.row_spacing = float(row_spacing_elem.text)
-
-    # Load number_rows
-    number_rows_elem = root.find("NumberOfRows")
-    if number_rows_elem is not None and number_rows_elem.text:
-        burst.number_rows = int(number_rows_elem.text)
-
-    # Load number_columns
-    number_columns_elem = root.find("NumberOfSamples")
-    if number_columns_elem is not None and number_columns_elem.text:
-        burst.number_columns = int(number_columns_elem.text)
-
-    # Load first_azimuth_datetime
-    azimuth_datetime_elem = root.find("AzimuthTime")
-    if azimuth_datetime_elem is not None and azimuth_datetime_elem.text:
-        burst.first_azimuth_datetime = datetime.fromisoformat(azimuth_datetime_elem.text)
-
-    azimuth_delay_elem = root.find("AzimuthTimingShift")
-    if azimuth_delay_elem is not None:
-        burst.azimuth_delay = float(azimuth_delay_elem.text)
-
-    range_iono_delay_elem = root.find("TsxMetaRangeDelayIonosphere")
-    range_tropo_delay_elem = root.find("TsxMetaRangeDelayTroposphere")
-    if range_iono_delay_elem is not None and range_tropo_delay_elem is not None:
-        iono_delay = float(range_tropo_delay_elem.text)
-        tropo_delay = float(range_tropo_delay_elem.text)
-        burst.range_delay = (iono_delay + tropo_delay) / 2.0
 
     return burst
 
-def fromDim(root: ET.Element, orbit, footprint) -> Burst:
+
+def fromDim(root: ET.Element, orbit, footprint, create_rpc = True) -> Burst:
     burst = Burst()
     burst.orbit = orbit
     burst.footprint = footprint
@@ -546,5 +619,8 @@ def fromDim(root: ET.Element, orbit, footprint) -> Burst:
     rt = burst.orbit.reference_time
     t = (burst.first_azimuth_datetime - rt).total_seconds()
     burst.first_azimuth_time = t
+
+    if create_rpc:
+        burst._rpc, burst._rpc_rmse = createRpc(burst)
 
     return burst

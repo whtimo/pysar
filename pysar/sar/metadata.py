@@ -34,16 +34,22 @@ class MetaData:
     def pixel_from_geocentric(self, geocentric: np.array, allow_parallel = True) -> np.array:
         return self._burst.pixel_from_geocentric(geocentric, allow_parallel=allow_parallel)
 
+    def pixel_from_coord_rpc(self, lon, lat, height):
+        return self._burst.pixel_from_coord_rpc(lon, lat, height)
+
+    def coord_from_pixel_rpc(self, col, row, height):
+        return self._burst.coord_from_pixel_rpc(col, row, height)
+
     def is_valid(self, x, y, winx=0, winy=0):
         return winx <= x < self.number_columns - winx and winy <= y < self.number_rows - winy
 
     # def get_incidence_angle(self, col):
     #     return self._incidence_interpolator(col)
 
-    def subset(self, window: Window):
+    def subset(self, window: Window, create_rpc = True):
         newmeta = MetaData()
 
-        newmeta._burst = self._burst.subset(window)
+        newmeta._burst = self._burst.subset(window, create_rpc=create_rpc)
         newmeta._orbit = newmeta._burst.orbit
         newmeta.acquisition_date = self.acquisition_date
         newmeta.number_rows = window.height
@@ -61,10 +67,10 @@ class MetaData:
 
         return newmeta
 
-    def multilook(self, multilook_range = 1, multilook_azimuth = 1):
+    def multilook(self, multilook_range = 1, multilook_azimuth = 1, create_rpc = True):
         newmeta = MetaData()
 
-        newmeta._burst = self._burst.multilook(multilook_range, multilook_azimuth)
+        newmeta._burst = self._burst.multilook(multilook_range, multilook_azimuth, create_rpc=create_rpc)
         newmeta._orbit = newmeta._burst.orbit
         newmeta.acquisition_date = self.acquisition_date
         newmeta.number_rows = int(self.number_rows / multilook_azimuth)
@@ -140,17 +146,14 @@ class MetaData:
         footprint_elem = ET.SubElement(meta_elem, "Footprint")
         self.footprint.toXml(footprint_elem)
 
-def fromTSX(xml_path: str, polarization: str) -> MetaData:
+def fromTSX(xml_path: str, polarization: str, create_rpc = True) -> MetaData:
     meta = MetaData()
     meta.polarization = polarization
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
-    georef_path = pathlib.Path(xml_path).parent / "ANNOTATION" / "GEOREF.xml"
-    if not georef_path.exists():
-        georef_path = None
 
-    meta._burst = burst.fromTSX(root, georef_path)
+    meta._burst = burst.fromTSX(root, create_rpc=create_rpc)
     meta._orbit = meta._burst.orbit
     meta.acquisition_date = meta._burst.first_azimuth_datetime.date()
     meta.number_rows = meta._burst.number_rows
@@ -260,7 +263,7 @@ def fromXml(root: ET.Element) -> MetaData:
     return metadata
 
 
-def fromBzarXml(root: ET.Element) -> MetaData:
+def fromBzarXml(root: ET.Element, create_rpc = True) -> MetaData:
     metadata = MetaData()
     meta_elem = root.find("MetaData")
     type = meta_elem.attrib['burst_type']
@@ -271,7 +274,8 @@ def fromBzarXml(root: ET.Element) -> MetaData:
     metadata._orbit = orbit.fromXml(orbit_elem, reference_time)
 
     burst_elem = meta_elem.find("Bursts/Burst")
-    metadata._burst = burst.fromBzarXml(burst_elem, metadata._orbit, type)
+    metadata._burst = burst.fromBzarXml(burst_elem, metadata._orbit, type, create_rpc=create_rpc)
+    footprint_elem = meta_elem.find("Footprint")
 
     # inc_elem = meta_elem.find("GeoGrid")
     #
@@ -346,7 +350,7 @@ def fromBzarXml(root: ET.Element) -> MetaData:
 
     return metadata
 
-def fromDim(root: ET.Element) -> MetaData:
+def fromDim(root: ET.Element, create_rpc = True) -> MetaData:
     metadata = MetaData()
 
     metadata.footprint = footprint.fromDim(root)
@@ -359,7 +363,7 @@ def fromDim(root: ET.Element) -> MetaData:
     metadata.wavelength = c / metadata._radar_frequency
     metadata.number_rows = int(root.find(".//MDATTR[@name='num_output_lines']").text)
     metadata.number_columns = int(root.find(".//MDATTR[@name='num_samples_per_line']").text)
-    metadata._burst = burst.fromDim(root, metadata._orbit, metadata.footprint)
+    metadata._burst = burst.fromDim(root, metadata._orbit, metadata.footprint, create_rpc=create_rpc)
     metadata.acquisition_date = metadata._burst.first_azimuth_datetime.date()
 
     return metadata

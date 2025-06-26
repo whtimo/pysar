@@ -1,69 +1,157 @@
 import numpy as np
 from scipy.ndimage import uniform_filter, generic_filter, laplace, gaussian_filter
-import pywt
+#import pywt
+from scipy.fftpack import fft2, ifft2, fftshift
+from scipy.ndimage import uniform_filter
+from scipy.signal import windows
 
 
-def goldstein_filter(interferogram:np.ndarray, alpha=0.8, fft_size=32, output = None) -> np.ndarray:
+def goldstein_filter(interferogram, alpha=0.5, patch_size=32, overlap=0.5):
     """
-    Apply the Goldstein filter to an InSAR interferogram to reduce phase noise.
-
-    Is that even a Goldstein filter? It was developed by DeepSeek-R1 and I think it is something else
+    Apply Goldstein filter to an interferogram.
 
     Parameters:
-    interferogram (np.ndarray): Complex 2D array representing the interferogram.
-    alpha (float): Filter parameter (0 to 1), higher values increase filtering strength.
-    fft_size (int): Size of the blocks to process (must be a power of two for FFT efficiency).
+    -----------
+    interferogram : complex numpy array
+        Complex interferogram to be filtered
+    alpha : float
+        Filter parameter (0 <= alpha <= 1)
+    patch_size : int
+        Size of patches for processing
+    overlap : float
+        Overlap fraction between patches (0 to 1)
 
     Returns:
-    np.ndarray: Filtered complex interferogram.
+    --------
+    filtered_interferogram : complex numpy array
+        Filtered interferogram
     """
+
+    # Get dimensions
     rows, cols = interferogram.shape
 
-    # Calculate padding to make dimensions multiples of fft_size
-    pad_rows = (fft_size - (rows % fft_size)) % fft_size
-    pad_cols = (fft_size - (cols % fft_size)) % fft_size
+    # Initialize output
+    filtered = np.zeros_like(interferogram, dtype=complex)
+    weight_map = np.zeros_like(interferogram, dtype=float)
 
-    # Pad the interferogram using reflect mode to minimize edge artifacts
-    padded = np.pad(interferogram, ((0, pad_rows), (0, pad_cols)), mode='reflect')
-    padded_rows, padded_cols = padded.shape
+    # Calculate step size based on overlap
+    step = int(patch_size * (1 - overlap))
 
-    # Initialize filtered array with complex dtype
-    filtered = np.zeros_like(padded, dtype=np.complex128)
+    # Create window for smooth patch merging
+    window = np.outer(windows.tukey(patch_size, 0.2), windows.tukey(patch_size, 0.2))
 
-    # Process each block
-    for i in range(0, padded_rows, fft_size):
-        if output is not None:
-            output('Processing row', i, rows)
+    # Process patches
+    for i in range(0, rows - patch_size + 1, step):
+        for j in range(0, cols - patch_size + 1, step):
+            # Extract patch
+            patch = interferogram[i:i + patch_size, j:j + patch_size]
 
-        for j in range(0, padded_cols, fft_size):
-            # Extract the current block
-            block = padded[i:i + fft_size, j:j + fft_size]
+            # Apply Goldstein filter to patch
+            filtered_patch = goldstein_filter_patch(patch, alpha)
 
-            # Compute 2D FFT
-            fft_block = np.fft.fft2(block)
+            # Add to output with windowing
+            filtered[i:i + patch_size, j:j + patch_size] += filtered_patch * window
+            weight_map[i:i + patch_size, j:j + patch_size] += window
 
-            # Calculate magnitude spectrum
-            magnitude = np.abs(fft_block)
+    # Normalize by weights
+    filtered = np.divide(filtered, weight_map, where=weight_map > 0)
 
-            # Handle zero magnitude case to avoid division by zero
-            max_mag = np.max(magnitude)
-            if max_mag == 0:
-                max_mag = 1e-10
+    return filtered
 
-            # Normalize magnitude and apply Goldstein filter
-            normalized = magnitude / max_mag
-            filt = normalized ** alpha
 
-            # Filter the FFT coefficients and compute inverse FFT
-            filtered_fft = fft_block * filt
-            ifft_block = np.fft.ifft2(filtered_fft)
+def goldstein_filter_patch(patch, alpha):
+    """
+    Apply Goldstein filter to a single patch.
 
-            # Store the result (complex)
-            filtered[i:i + fft_size, j:j + fft_size] = ifft_block
+    Parameters:
+    -----------
+    patch : complex numpy array
+        Complex interferogram patch
+    alpha : float
+        Filter parameter
 
-    # Crop to the original dimensions
-    return filtered[:rows, :cols]
+    Returns:
+    --------
+    filtered_patch : complex numpy array
+        Filtered patch
+    """
 
+    # FFT of the patch
+    spectrum = fft2(patch)
+
+    # Calculate amplitude spectrum
+    amplitude = np.abs(spectrum)
+
+    # Apply smoothing to amplitude (using a simple box filter)
+    smoothed_amplitude = uniform_filter(amplitude, size=3)
+
+    # Apply Goldstein filter
+    # H = S{|Z|}^alpha * Z
+    filter_response = np.power(smoothed_amplitude, alpha)
+    filtered_spectrum = filter_response * spectrum
+
+    # Inverse FFT
+    filtered_patch = ifft2(filtered_spectrum)
+
+    return filtered_patch
+
+
+def adaptive_goldstein_filter(interferogram, coherence, patch_size=32, overlap=0.5):
+    """
+    Apply adaptive Goldstein filter based on coherence.
+
+    Parameters:
+    -----------
+    interferogram : complex numpy array
+        Complex interferogram to be filtered
+    coherence : numpy array
+        Coherence map (values between 0 and 1)
+    patch_size : int
+        Size of patches for processing
+    overlap : float
+        Overlap fraction between patches
+
+    Returns:
+    --------
+    filtered_interferogram : complex numpy array
+        Filtered interferogram
+    """
+
+    # Get dimensions
+    rows, cols = interferogram.shape
+
+    # Initialize output
+    filtered = np.zeros_like(interferogram, dtype=complex)
+    weight_map = np.zeros_like(interferogram, dtype=float)
+
+    # Calculate step size based on overlap
+    step = int(patch_size * (1 - overlap))
+
+    # Create window for smooth patch merging
+    window = np.outer(windows.tukey(patch_size, 0.2), windows.tukey(patch_size, 0.2))
+
+    # Process patches
+    for i in range(0, rows - patch_size + 1, step):
+        for j in range(0, cols - patch_size + 1, step):
+            # Extract patch
+            patch = interferogram[i:i + patch_size, j:j + patch_size]
+            coherence_patch = coherence[i:i + patch_size, j:j + patch_size]
+
+            # Calculate adaptive alpha based on mean coherence
+            mean_coherence = np.mean(coherence_patch)
+            alpha = 1 - mean_coherence  # Low coherence -> high alpha (more filtering)
+
+            # Apply Goldstein filter to patch
+            filtered_patch = goldstein_filter_patch(patch, alpha)
+
+            # Add to output with windowing
+            filtered[i:i + patch_size, j:j + patch_size] += filtered_patch * window
+            weight_map[i:i + patch_size, j:j + patch_size] += window
+
+    # Normalize by weights
+    filtered = np.divide(filtered, weight_map, where=weight_map > 0)
+
+    return filtered
 
 def lee_filter(image, window_size=3, sigma_n=0.5):
     """
@@ -273,37 +361,37 @@ def gamma_map_filter(image, window_size=3, enl=5.0):
 
 
 
-def wavelet_filter(image, wavelet='db1', level=3, threshold=0.1, mode='soft'):
-    """
-    Apply a wavelet-based filter to a SAR image to reduce speckle noise.
-
-    Parameters:
-        image (np.ndarray): Input SAR image as a 2D numpy array.
-        wavelet (str): Type of wavelet to use (default is 'db1' for Daubechies 1).
-        level (int): Decomposition level (default is 3).
-        threshold (float): Threshold value for noise reduction (default is 0.1).
-        mode (str): Thresholding mode ('soft' or 'hard', default is 'soft').
-
-    Returns:
-        np.ndarray: Filtered image as a 2D numpy array.
-    """
-    # Ensure the image is a numpy array
-    image = np.asarray(image, dtype=np.float32)
-
-    # Perform wavelet decomposition
-    coeffs = pywt.wavedec2(image, wavelet, level=level)
-
-    # Threshold the detail coefficients
-    coeffs_thresh = [coeffs[0]]  # Keep the approximation coefficients
-    for i in range(1, len(coeffs)):
-        # Apply thresholding to the detail coefficients
-        detail_coeffs = [pywt.threshold(c, threshold, mode=mode) for c in coeffs[i]]
-        coeffs_thresh.append(detail_coeffs)
-
-    # Reconstruct the image from the thresholded coefficients
-    filtered_image = pywt.waverec2(coeffs_thresh, wavelet)
-
-    return filtered_image
+# def wavelet_filter(image, wavelet='db1', level=3, threshold=0.1, mode='soft'):
+#     """
+#     Apply a wavelet-based filter to a SAR image to reduce speckle noise.
+#
+#     Parameters:
+#         image (np.ndarray): Input SAR image as a 2D numpy array.
+#         wavelet (str): Type of wavelet to use (default is 'db1' for Daubechies 1).
+#         level (int): Decomposition level (default is 3).
+#         threshold (float): Threshold value for noise reduction (default is 0.1).
+#         mode (str): Thresholding mode ('soft' or 'hard', default is 'soft').
+#
+#     Returns:
+#         np.ndarray: Filtered image as a 2D numpy array.
+#     """
+#     # Ensure the image is a numpy array
+#     image = np.asarray(image, dtype=np.float32)
+#
+#     # Perform wavelet decomposition
+#     coeffs = pywt.wavedec2(image, wavelet, level=level)
+#
+#     # Threshold the detail coefficients
+#     coeffs_thresh = [coeffs[0]]  # Keep the approximation coefficients
+#     for i in range(1, len(coeffs)):
+#         # Apply thresholding to the detail coefficients
+#         detail_coeffs = [pywt.threshold(c, threshold, mode=mode) for c in coeffs[i]]
+#         coeffs_thresh.append(detail_coeffs)
+#
+#     # Reconstruct the image from the thresholded coefficients
+#     filtered_image = pywt.waverec2(coeffs_thresh, wavelet)
+#
+#     return filtered_image
 
 
 

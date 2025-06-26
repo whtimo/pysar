@@ -8,4 +8,6 @@ pandas~=2.2.3
 networkx~=3.4.2
 h5py~=3.13.0
 scikit-learn~=1.6.1
-PyWavelets~=1.8.0
+scikit-image~=0.25.2
+rpcm~=1.4.10
+rpcfit~=0.9.9

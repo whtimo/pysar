@@ -96,12 +96,6 @@ def fromTSX(root: ET.Element) -> Orbit:
     orbit._spline_x = CubicHermiteSpline(orbit.times, orbit.positions[:, 0], orbit.velocities[:, 0])
     orbit._spline_y = CubicHermiteSpline(orbit.times, orbit.positions[:, 1], orbit.velocities[:, 1])
     orbit._spline_z = CubicHermiteSpline(orbit.times, orbit.positions[:, 2], orbit.velocities[:, 2])
-    # orbit._spline_x = CubicSpline(orbit.times, orbit.positions[:, 0])
-    # orbit._spline_y = CubicSpline(orbit.times, orbit.positions[:, 1])
-    # orbit._spline_z = CubicSpline(orbit.times, orbit.positions[:, 2])
-    #orbit._spline_x = lagrange(orbit.times, orbit.positions[:, 0])
-    #orbit._spline_y = lagrange(orbit.times, orbit.positions[:, 1])
-    #orbit._spline_z = lagrange(orbit.times, orbit.positions[:, 2])
 
     return orbit
 
@@ -133,9 +127,6 @@ def fromXml(root: ET.Element, ref_time: datetime = None) -> Orbit:
     orbit._spline_x = CubicHermiteSpline(orbit.times, orbit.positions[:, 0], orbit.velocities[:, 0])
     orbit._spline_y = CubicHermiteSpline(orbit.times, orbit.positions[:, 1], orbit.velocities[:, 1])
     orbit._spline_z = CubicHermiteSpline(orbit.times, orbit.positions[:, 2], orbit.velocities[:, 2])
-    #orbit._spline_x = lagrange(orbit.times, orbit.positions[:, 0])
-    #orbit._spline_y = lagrange(orbit.times, orbit.positions[:, 1])
-    #orbit._spline_z = lagrange(orbit.times, orbit.positions[:, 2])
 
     return orbit
 
@@ -172,8 +163,5 @@ def fromDim(root: ET.Element, ref_time: datetime) -> Orbit:
     orbit._spline_x = CubicHermiteSpline(orbit.times, orbit.positions[:, 0], orbit.velocities[:, 0])
     orbit._spline_y = CubicHermiteSpline(orbit.times, orbit.positions[:, 1], orbit.velocities[:, 1])
     orbit._spline_z = CubicHermiteSpline(orbit.times, orbit.positions[:, 2], orbit.velocities[:, 2])
-    #orbit._spline_x = lagrange(orbit.times, orbit.positions[:, 0])
-    #orbit._spline_y = lagrange(orbit.times, orbit.positions[:, 1])
-    #orbit._spline_z = lagrange(orbit.times, orbit.positions[:, 2])
 
     return orbit

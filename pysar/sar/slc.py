@@ -14,15 +14,15 @@ class Slc:
         self.metadata = None
         self.slcdata = None
 
-    def subset(self, window: Window):
+    def subset(self, window: Window, create_rpc = True):
         newslc = Slc()
-        newslc.metadata = self.metadata.subset(window)
+        newslc.metadata = self.metadata.subset(window, create_rpc=create_rpc)
         newslc.slcdata = self.slcdata.subset(window)
         return newslc
 
-    def multilook(self, multilook_range = 1, multilook_azimuth = 1):
+    def multilook(self, multilook_range = 1, multilook_azimuth = 1, create_rpc = True):
         newslc = Slc()
-        newslc.metadata = self.metadata.multilook(multilook_range, multilook_azimuth)
+        newslc.metadata = self.metadata.multilook(multilook_range, multilook_azimuth, create_rpc=create_rpc)
         newslc.slcdata = self.slcdata.multilook(multilook_range, multilook_azimuth)
         return newslc
 
@@ -72,10 +72,10 @@ class Slc:
         return ""
 
 
-def fromTSX(xml_path: str, swath_id: int = 0) -> Slc:
+def fromTSX(xml_path: str, swath_id: int = 0, create_rpc = True) -> Slc:
     slc = Slc()
     pol_file_list = getPolCosFileNamesFromTsx(xml_path)
-    slc.metadata = metadata.fromTSX(xml_path, pol_file_list[swath_id][1])
+    slc.metadata = metadata.fromTSX(xml_path, pol_file_list[swath_id][1], create_rpc=create_rpc)
     slc.slcdata = cpl_float_slcdata.CplFloatSlcData(pol_file_list[swath_id][0])
     return slc
 
@@ -116,18 +116,8 @@ def fromPysarXml(xml_path: str) -> Slc:
     slc.slcdata = cpl_float_slcdata.fromXml(slc_elem, xml_path)
     return slc
 
-def fromBzarXml(xml_path: str) -> Slc:
-    slc = Slc()
 
-    root = ET.parse(xml_path).getroot()
-    slc_elem = root.find("SlcImage")
-    if slc_elem is None: return None
-
-    slc.metadata = metadata.fromBzarXml(slc_elem.find("Band"))
-    slc.slcdata = cpl_float_slcdata.fromXml(slc_elem, xml_path)
-    return slc
-
-def fromDim(dim_path: str):
+def fromDim(dim_path: str, create_rpc = True):
 
     root = ET.parse(dim_path).getroot()
     data_elem = root.find("Data_Access")
@@ -162,7 +152,7 @@ def fromDim(dim_path: str):
 
     if master_meta_elem is not None:
         slc = Slc()
-        slc.metadata = metadata.fromDim(master_meta_elem)
+        slc.metadata = metadata.fromDim(master_meta_elem, create_rpc=create_rpc)
         slc.slcdata = iq_float_slcdata.IqFloatSlcData(data_dict['i'], data_dict['q'])
 
         return slc

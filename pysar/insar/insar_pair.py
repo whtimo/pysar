@@ -3,6 +3,7 @@ from pysar.sar import slc, cpl_float_slcdata, metadata
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pathlib
+import os
 
 class InSarPair:
     def __init__(self, filepath:str = None):
@@ -12,6 +13,7 @@ class InSarPair:
         self.temporal_baseline = None
         self.shift_x = None
         self.shift_y = None
+
 
         if filepath:
             root = ET.parse(filepath).getroot()
@@ -87,6 +89,8 @@ class InSarPair:
             pair_elem.attrib["temporal_baseline"] = str(self.temporal_baseline)
             pair_elem.attrib["shift_x"] = str(self.shift_x)
             pair_elem.attrib["shift_y"] = str(self.shift_y)
+
+
             master_elem = ET.SubElement(pair_elem, "Master")
             self.master.metadata.toXml(master_elem)
             if not pathlib.Path(master_tiff_fn).exists():
@@ -122,6 +126,8 @@ def createInSarPair(master: slc.Slc, slave: slc.Slc, base_line: baseline.Baselin
     pair.shift_y = shift[1]
 
     return pair
+
+
 
 def fromBzarXml(xml_path: str) -> InSarPair:
     pair = InSarPair()

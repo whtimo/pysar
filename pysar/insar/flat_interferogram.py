@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pathlib
 
+#import matplotlib.pyplot as plt
 
 class FlatInterferogram:
     def __init__(self, filepath: str = None):
@@ -48,16 +49,16 @@ class FlatInterferogram:
         else:
             counter = 0
             xml_filename = pathlib.Path(
-                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.{filter}flat.interfero.xml'
+                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{counter}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.{filter}flat.interfero.xml'
             insar_tiff_fn = pathlib.Path(
-                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
+                directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{counter}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
 
             while not overwrite and xml_filename.exists():
                 counter += 1
                 xml_filename = pathlib.Path(
-                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.{filter}flat.interfero.xml'
+                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{counter}_{self.slave_metadata.acquisition_date.isoformat()}.pysar.{filter}flat.interfero.xml'
                 insar_tiff_fn = pathlib.Path(
-                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
+                    directory) / f'{self.master_metadata.sensor}_{counter}_{self.master_metadata.acquisition_date.isoformat()}__{self.slave_metadata.sensor}_{counter}_{self.slave_metadata.acquisition_date.isoformat()}.{filter}flat.interfero.tiff'
 
         if len(str(xml_filename)) > 0:
             root = ET.Element("PySar")
@@ -196,13 +197,16 @@ def get_image_coord_satposmaster_satpos_slave(geocentric, master_meta: metadata.
     return result
 
 
-def get_image_coord_phase(geocentric, master_meta, slave_meta):
+def get_image_coord_phase(geocentric, master_meta, slave_meta, is_bistatic = False):
     pos = get_image_coord_satposmaster_satpos_slave(geocentric, master_meta, slave_meta)
 
     result = []
     for m_x, m_y, geoc_point, satpos_m, satpos_s in pos:
         distance_m = np.linalg.norm(geoc_point - satpos_m)
         distance_s = np.linalg.norm(geoc_point - satpos_s)
+        if is_bistatic:
+            distance_s = (distance_m + distance_s) / 2
+
         delta_r = distance_s - distance_m
         # Calculate the interferometric phase difference
         delta_phi = (4 * np.pi / master_meta.wavelength) * delta_r
@@ -214,7 +218,7 @@ def get_image_coord_phase(geocentric, master_meta, slave_meta):
 
 def get_flat_phase_model(pair: resampled_pair.ResampledPair):
     geoc_points = get_geocentric_points(pair.master.metadata.footprint)
-    coords_phi = get_image_coord_phase(geoc_points, pair.master.metadata, pair.slave.metadata)
+    coords_phi = get_image_coord_phase(geoc_points, pair.master.metadata, pair.slave.metadata, pair.bistatic)
 
     X = np.array([[x, y] for x, y, _ in coords_phi])  # Input features (m_x, m_y)
     y = np.array([phi for _, _, phi in coords_phi])  # Target variable (delta_phi)
@@ -234,6 +238,22 @@ def create_flattened_interferogram(pair: resampled_pair.ResampledPair, phase_mod
     master = pair.master.slcdata.read()
     slave = pair.slave.slcdata.read()
 
+    # fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+    #
+    # # Plot the estimated dx shifts
+    # # im1 = ax1.imshow(pred_wrapped_phase, extent=[0, pair.master.metadata.number_columns, 0, pair.master.metadata.number_rows], origin='lower', cmap='hsv')
+    # im1 = ax1.imshow(np.angle(master * np.conjugate(slave)),
+    #                  cmap='hsv')
+    #
+    # # ax1.set_title('Estimated Topographic Phase')
+    # ax1.set_xlabel('X')
+    # ax1.set_ylabel('Y')
+    # fig.colorbar(im1, ax=ax1, label='phase')
+    #
+    # plt.tight_layout()
+    # #plt.show()
+    # plt.savefig('/home/timo/Documents/interfero.png', dpi=150)
+
     flat_interfero = np.zeros(master.shape, dtype=np.complex64)
 
     xs = np.arange(master.shape[1])
@@ -244,11 +264,28 @@ def create_flattened_interferogram(pair: resampled_pair.ResampledPair, phase_mod
             output("Flat interferogram", y, master.shape[0])
 
         interfero = master[y, :] * np.conjugate(slave[y, :])
+
         coordinates = np.column_stack((xs, np.full_like(xs, y)))
         point_poly = poly.transform(coordinates)
         pred_phase = phase_model.predict(point_poly)
         flat_phases = np.exp(1j * pred_phase)
         flat_interfero[y, :] = interfero * np.conjugate(flat_phases)
+
+    # fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+    #
+    # # Plot the estimated dx shifts
+    # # im1 = ax1.imshow(pred_wrapped_phase, extent=[0, pair.master.metadata.number_columns, 0, pair.master.metadata.number_rows], origin='lower', cmap='hsv')
+    # im1 = ax1.imshow(np.angle(flat_interfero),
+    #                  cmap='hsv')
+    #
+    # #ax1.set_title('Estimated Topographic Phase')
+    # ax1.set_xlabel('X')
+    # ax1.set_ylabel('Y')
+    # fig.colorbar(im1, ax=ax1, label='phase')
+    #
+    # plt.tight_layout()
+    # #plt.show()
+    # plt.savefig('/home/timo/Documents/flat_interfero.png', dpi=150)
 
     return flat_interfero
 
