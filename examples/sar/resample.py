@@ -23,7 +23,6 @@ if __name__ == "__main__":
 
     print('Start resampling')
     slave_resample = resample.resample_sar_image(slave, master.shape, est_dx, est_dy, output=tools.output_console)
-    #slave_resample = np.zeros(master.shape, dtype=np.complex64)
 
     res_pair = resampled_pair.createResampledPair(pair.master, pair.slave, slave_resample)
     master_tiff_filename = res_pair.save(directory=output_path)

@@ -94,4 +94,3 @@ if __name__ == "__main__":
     ) as dst:
         dst.write(new_geo_sar, 1)
 
-    print('end')# Write the data to the first band

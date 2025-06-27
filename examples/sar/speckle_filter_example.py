@@ -19,5 +19,4 @@ if __name__ == "__main__":
     img = ax1.imshow(data[1200:1500,2080:2480], cmap='gray', vmin=0, vmax=256)
     img2 = ax2.imshow(filtered, cmap='gray', vmin=0, vmax=256)
     plt.tight_layout()
-    #plt.show()
-    plt.savefig('/home/timo/Data/pysar_test/speckle/nlm_filter.png', dpi=96)
+    plt.show()
